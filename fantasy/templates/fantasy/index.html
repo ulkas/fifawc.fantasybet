@@ -1,0 +1,86 @@
+{% extends "fantasy/base.html" %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero__copy">
+        <p class="eyebrow">FIFA World Cup 2026</p>
+        <h1>Fantasy predictions for every country match.</h1>
+        <p>Pick home win, draw, away win, or skip a match. Upcoming bets can be changed until kickoff. Started and completed matches are locked.</p>
+    </div>
+    <div class="gate-panel">
+        {% if gate_open %}
+            <h2>Portal unlocked</h2>
+            <p>Continue to your predictions or inspect the current league table.</p>
+            <div class="button-row">
+                <a class="button button--primary" href="{% url 'fantasy:join' %}">Enter league</a>
+                <a class="button" href="{% url 'fantasy:leaderboard' %}">View leaders</a>
+            </div>
+        {% else %}
+            <h2>{% if gate_configured %}Enter portal{% else %}Set portal password{% endif %}</h2>
+            {% if not gate_configured %}
+                <p>The first password submitted here becomes the shared entry password for this portal.</p>
+            {% endif %}
+            <form method="post" class="form-stack">
+                {% csrf_token %}
+                {{ gate_form.password }}
+                <button class="button button--primary" type="submit">Unlock</button>
+            </form>
+        {% endif %}
+    </div>
+</section>
+
+<section class="rule-strip">
+    <article><strong>3</strong><span>points for a correct win or draw</span></article>
+    <article><strong>1</strong><span>point for no bet after a match is scored</span></article>
+    <article><strong>0</strong><span>points for a wrong prediction</span></article>
+</section>
+
+<section class="content-grid">
+    <div class="panel">
+        <div class="section-heading">
+            <h2>Upcoming matches <span class="heading-note">({{ upcoming_match_count }})</span></h2>
+            <a href="{% url 'fantasy:matches' %}">Full timeline</a>
+        </div>
+        <div class="match-list">
+            {% for row in upcoming_rows %}
+                {% if current_player %}
+                    {% include "fantasy/partials/prediction_card.html" with match=row.match prediction=row.prediction %}
+                {% else %}
+                    {% include "fantasy/partials/match_summary.html" with match=row.match %}
+                {% endif %}
+            {% empty %}
+                <p>No matches imported yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="panel">
+        <div class="section-heading">
+            <h2>Completed matches <span class="heading-note">({{ completed_match_count }})</span></h2>
+            <a href="{% url 'fantasy:matches' %}">Full timeline</a>
+        </div>
+        <div class="match-list">
+            {% for match in completed_matches %}
+                {% include "fantasy/partials/match_summary.html" with match=match %}
+            {% empty %}
+                <p>No completed matches yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="panel">
+        <div class="section-heading">
+            <h2>Leaders <span class="heading-note">(min {{ score_range.min_points }} - max {{ score_range.max_points }})</span></h2>
+            <a href="{% url 'fantasy:leaderboard' %}">Full table</a>
+        </div>
+        <ol class="leader-list">
+            {% for row in leaders %}
+                <li>
+                    <a href="{% url 'fantasy:player-detail' row.player.nick %}">{{ row.player.display_name }}</a>
+                    <strong>{{ row.points }}</strong>
+                </li>
+            {% empty %}
+                <li>No players yet.</li>
+            {% endfor %}
+        </ol>
+    </div>
+</section>
+{% endblock %}

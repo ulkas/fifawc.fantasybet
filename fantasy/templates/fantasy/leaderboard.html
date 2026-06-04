@@ -1,0 +1,31 @@
+{% extends "fantasy/base.html" %}
+
+{% block title %}Leaderboard | WC 2026 Fantasy{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <p class="eyebrow">Ranking</p>
+    <h1>Current table <span class="heading-note">(min {{ score_range.min_points }} - max {{ score_range.max_points }})</span></h1>
+</section>
+<section class="panel">
+    <table class="leaderboard">
+        <thead>
+            <tr><th>#</th><th>Player</th><th>Points</th><th>Correct</th><th>Wrong</th><th>No-bet pts</th></tr>
+        </thead>
+        <tbody>
+            {% for row in leaders %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><a href="{% url 'fantasy:player-detail' row.player.nick %}">{{ row.player.display_name }}</a></td>
+                    <td><strong>{{ row.points }}</strong></td>
+                    <td>{{ row.correct }}</td>
+                    <td>{{ row.wrong }}</td>
+                    <td>{{ row.no_bet_points }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6">No players yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

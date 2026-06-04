@@ -1,0 +1,37 @@
+{% extends "fantasy/base.html" %}
+
+{% block title %}Matches | WC 2026 Fantasy{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <p class="eyebrow">Timeline</p>
+    <h1>Matches and predictions</h1>
+</section>
+
+{% for group, rows in groups.items %}
+    <section class="panel section-block">
+        <div class="section-heading">
+            <h2>{{ group }}</h2>
+        </div>
+        <div class="match-list">
+            {% for row in rows %}
+                {% include "fantasy/partials/prediction_card.html" with match=row.match prediction=row.prediction %}
+            {% endfor %}
+        </div>
+    </section>
+{% endfor %}
+
+{% if knockouts %}
+    <section class="panel section-block">
+        <div class="section-heading">
+            <h2>Knockout path</h2>
+            <a href="{% url 'fantasy:bracket' %}">Bracket view</a>
+        </div>
+        <div class="match-list">
+            {% for row in knockouts %}
+                {% include "fantasy/partials/prediction_card.html" with match=row.match prediction=row.prediction %}
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+{% endblock %}

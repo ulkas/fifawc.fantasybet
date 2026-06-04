@@ -1,0 +1,35 @@
+{% extends "fantasy/base.html" %}
+
+{% block title %}Join | WC 2026 Fantasy{% endblock %}
+
+{% block content %}
+<section class="join-grid">
+    <div>
+        <p class="eyebrow">Player setup</p>
+        <h1>Register a nick or resume on this device.</h1>
+        <p>Your PIN only prevents casual account overwrites. This game intentionally keeps login lightweight.</p>
+    </div>
+    <div class="panel">
+        <div class="tabs">
+            <button type="button" class="tab is-active" data-mode="register">Register</button>
+            <button type="button" class="tab" data-mode="login">Login</button>
+        </div>
+        <form method="post" class="form-stack" id="join-form">
+            {% csrf_token %}
+            <input type="hidden" name="mode" id="mode-field" value="register">
+            <label>Nick<input name="nick" required maxlength="60" autocomplete="username"></label>
+            <label>PIN<input name="pin" required maxlength="64" type="password" autocomplete="current-password"></label>
+            <button class="button button--primary" type="submit">Continue</button>
+        </form>
+    </div>
+</section>
+<script>
+document.querySelectorAll('.tab').forEach((button) => {
+    button.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach((item) => item.classList.remove('is-active'));
+        button.classList.add('is-active');
+        document.getElementById('mode-field').value = button.dataset.mode;
+    });
+});
+</script>
+{% endblock %}

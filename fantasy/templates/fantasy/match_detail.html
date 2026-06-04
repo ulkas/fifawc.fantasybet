@@ -1,0 +1,14 @@
+{% extends "fantasy/base.html" %}
+
+{% block title %}Match {{ match.match_number }} | WC 2026 Fantasy{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <p class="eyebrow">Match details</p>
+    <h1>Match {{ match.match_number }}</h1>
+</section>
+
+<section class="panel section-block match-detail-panel">
+    {% include "fantasy/partials/prediction_card.html" with match=match prediction=prediction %}
+</section>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "fantasy/base.html" %}
+{% load fantasy_flags fantasy_time %}
+
+{% block title %}{{ profile_player.display_name }} | WC 2026 Fantasy{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <p class="eyebrow">Player</p>
+    <h1>{{ profile_player.display_name }}</h1>
+</section>
+<section class="panel">
+    <div class="match-list">
+        {% for row in rows %}
+            <article class="match-card">
+                <div class="match-card__meta">
+                    <strong>Match {{ row.match.match_number }}</strong>
+                    <span>{{ row.match.kickoff_at|cet_match_time }} &middot; {{ row.match.get_stage_display }}</span>
+                </div>
+                <div class="team-split team-split--readout">
+                    <div class="team-split__side team-split__side--home prediction-option{% if row.prediction.choice == "home" %} is-picked{% endif %}">
+                        <span class="team-split__flag">{% flag_image row.match.home_team row.match.home_label %}</span>
+                        <span>{{ row.match.home_label }}</span>
+                    </div>
+                    <div class="team-split__middle prediction-option prediction-option--draw{% if row.prediction.choice == "draw" %} is-picked{% endif %}">
+                        <span>{% if row.match.is_scored %}{{ row.match.score_label }}{% else %}Draw{% endif %}</span>
+                    </div>
+                    <div class="team-split__side team-split__side--away prediction-option{% if row.prediction.choice == "away" %} is-picked{% endif %}">
+                        <span class="team-split__flag">{% flag_image row.match.away_team row.match.away_label %}</span>
+                        <span>{{ row.match.away_label }}</span>
+                    </div>
+                </div>
+                <div class="prediction-readout prediction-readout--detail">
+                    <span class="prediction-option prediction-option--none{% if not row.prediction or row.prediction.choice == "none" %} is-picked{% endif %}">No bet</span>
+                    <strong>{{ row.points }} pts</strong>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,9 @@
+.env
+.env.production
+.git
+.git-auth
+db.sqlite3
+staticfiles
+__pycache__
+*.pyc
+.pytest_cache

@@ -1,0 +1,4 @@
+{% load static %}
+{% if code %}
+    <img class="team-flag" src="{% static 'fantasy/flags/' %}{{ code }}.svg" alt="{{ name }} flag" loading="lazy">
+{% endif %}

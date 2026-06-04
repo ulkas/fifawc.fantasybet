@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}WC 2026 Fantasy{% endblock %}</title>
+    <link rel="icon" href="{% static 'fantasy/favicon.ico' %}">
+    <link rel="stylesheet" href="{% static 'fantasy/app.css' %}">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="{% url 'fantasy:index' %}">
+            <img class="brand__mark" src="{% static 'fantasy/portal-logo.png' %}" alt="WC Fantasy">
+            <span>
+                <strong>WC Fantasy</strong>
+                <small>2026 prediction league</small>
+            </span>
+        </a>
+        <nav class="top-nav">
+            <a href="{% url 'fantasy:matches' %}">Matches</a>
+            <a href="{% url 'fantasy:leaderboard' %}">Leaders</a>
+            <a href="{% url 'fantasy:bracket' %}">Bracket</a>
+            {% if current_player %}
+                <a href="{% url 'fantasy:player-detail' current_player.nick %}">{{ current_player.display_name }}</a>
+            {% endif %}
+        </nav>
+    </header>
+
+    <main class="page">
+        {% if messages %}
+            <section class="messages">
+                {% for message in messages %}
+                    <div class="message message--{{ message.tags|default:'info' }}">{{ message }}</div>
+                {% endfor %}
+            </section>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

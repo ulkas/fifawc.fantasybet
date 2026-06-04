@@ -1,0 +1,10 @@
+.env
+.env.production
+.git-auth/
+db.sqlite3
+staticfiles/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/

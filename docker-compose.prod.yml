@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - static_data:/app/staticfiles
+      - gunicorn_run:/run/gunicorn
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      SERVER_NAME: ${APP_PUBLIC_HOST:-ulkas.duckdns.org}
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/templates/shared-proxy.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - static_data:/var/www/static:ro
+      - gunicorn_run:/run/gunicorn
+    expose:
+      - "80"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=edge
+      - traefik.http.routers.fantasy-http.rule=Host(`${APP_PUBLIC_HOST:-ulkas.duckdns.org}`) && PathPrefix(`${APP_PATH_PREFIX:-/fantasy}`)
+      - traefik.http.routers.fantasy-http.entrypoints=web
+      - traefik.http.routers.fantasy-http.middlewares=redirect-to-https
+      - traefik.http.routers.fantasy.rule=Host(`${APP_PUBLIC_HOST:-ulkas.duckdns.org}`) && PathPrefix(`${APP_PATH_PREFIX:-/fantasy}`)
+      - traefik.http.routers.fantasy.entrypoints=websecure
+      - traefik.http.routers.fantasy.middlewares=fantasy-strip
+      - traefik.http.routers.fantasy.tls=true
+      - traefik.http.routers.fantasy.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}
+      - traefik.http.middlewares.fantasy-strip.stripprefix.prefixes=${APP_PATH_PREFIX:-/fantasy}
+      - traefik.http.services.fantasy.loadbalancer.server.port=80
+    networks:
+      - default
+      - edge
+
+volumes:
+  postgres_data:
+  static_data:
+  gunicorn_run:
+
+networks:
+  edge:
+    external: true

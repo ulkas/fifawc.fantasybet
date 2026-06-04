@@ -1,0 +1,103 @@
+name: Deploy FIFA WC Fantasy Portal
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      deploy_action:
+        description: "Deployment action to run"
+        required: true
+        default: "remote-preflight"
+        type: choice
+        options:
+          - remote-preflight
+          - deploy
+
+concurrency:
+  group: fifawc-fantasybet-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_action || 'deploy' }} production
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_APP_DIR: ${{ secrets.DEPLOY_APP_DIR || '/opt/wcf' }}
+      DEPLOY_PUBLIC_URL: ${{ secrets.DEPLOY_PUBLIC_URL || 'https://ulkas.duckdns.org/fantasy/' }}
+      DEPLOY_PUBLIC_BASE_URL: ${{ secrets.DEPLOY_PUBLIC_BASE_URL || 'https://ulkas.duckdns.org/fantasy' }}
+      DEPLOY_MIN_FREE_MB: ${{ secrets.DEPLOY_MIN_FREE_MB || '1024' }}
+      DEPLOY_MODE: archive-copy
+      RUN_LOCAL_TESTS: "0"
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create CI env file
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .env <<'EOF'
+          DJANGO_SECRET_KEY=ci-only-secret
+          DJANGO_DEBUG=1
+          DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,testserver
+          DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8080
+          PUBLIC_BASE_URL=http://localhost:8080
+          DJANGO_TIME_ZONE=Europe/Warsaw
+          DJANGO_USE_SQLITE=0
+          POSTGRES_DB=fantasy
+          POSTGRES_USER=fantasy
+          POSTGRES_PASSWORD=fantasy
+          POSTGRES_HOST=db
+          POSTGRES_PORT=5432
+          SERVER_NAME=localhost
+          WEB_CONCURRENCY=1
+          GUNICORN_RELOAD=0
+          GUNICORN_THREADS=4
+          EOF
+
+      - name: Validate required deployment secrets
+        shell: bash
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_SSH_PRIVATE_KEY" || { echo "Missing DEPLOY_SSH_PRIVATE_KEY secret."; exit 1; }
+          test -n "$DEPLOY_KNOWN_HOSTS" || { echo "Missing DEPLOY_KNOWN_HOSTS secret."; exit 1; }
+          test -n "$DEPLOY_HOST" || { echo "Missing DEPLOY_HOST secret."; exit 1; }
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/deploy_key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/deploy_key" "$RUNNER_TEMP/ssh/known_hosts"
+          {
+            echo "DEPLOY_SSH_KEY=$RUNNER_TEMP/ssh/deploy_key"
+            echo "DEPLOY_KNOWN_HOSTS_FILE=$RUNNER_TEMP/ssh/known_hosts"
+          } >> "$GITHUB_ENV"
+
+      - name: Local Docker Compose config
+        run: docker compose config
+
+      - name: Local Django tests
+        run: docker compose run --rm --no-deps -e DJANGO_USE_SQLITE=1 -e POSTGRES_HOST= web python manage.py test
+
+      - name: Run deployment driver
+        shell: pwsh
+        run: ./scripts/deploy.ps1 ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_action || 'deploy' }}

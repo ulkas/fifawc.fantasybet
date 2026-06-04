@@ -1,0 +1,31 @@
+{% extends "fantasy/base.html" %}
+{% load fantasy_flags fantasy_time %}
+
+{% block title %}Bracket | WC 2026 Fantasy{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <p class="eyebrow">Playoff plan</p>
+    <h1>Knockout bracket</h1>
+</section>
+<section class="bracket" aria-label="Knockout bracket">
+    {% for stage, matches in stages.items %}
+        <div class="bracket__stage bracket__stage--{{ forloop.counter }}" style="--stage-index: {{ forloop.counter0 }};">
+            <h2>{{ stage }}</h2>
+            <div class="bracket__matches">
+                {% for match in matches %}
+                    <article class="bracket-match">
+                        <small>Match {{ match.match_number }} &middot; {{ match.kickoff_at|cet_match_time }}</small>
+                        <strong class="team-inline">{% flag_image match.home_team match.home_label %} {{ match.home_label }}</strong>
+                        <span>{{ match.score_label }}</span>
+                        <strong class="team-inline">{% flag_image match.away_team match.away_label %} {{ match.away_label }}</strong>
+                        <small>{{ match.venue.name|default:"TBD" }}</small>
+                    </article>
+                {% endfor %}
+            </div>
+        </div>
+    {% empty %}
+        <div class="panel">No knockout matches imported yet.</div>
+    {% endfor %}
+</section>
+{% endblock %}

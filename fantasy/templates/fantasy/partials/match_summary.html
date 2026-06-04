@@ -1,0 +1,18 @@
+{% load fantasy_flags fantasy_time %}
+<a class="match-card match-card--summary match-card--link" href="{% url 'fantasy:match-detail' match.match_number %}">
+    <div class="match-card__meta">
+        <strong>Match {{ match.match_number }}</strong>
+        <span>{{ match.kickoff_at|cet_match_time }} &middot; {{ match.venue.name|default:"TBD" }}</span>
+    </div>
+    <div class="team-split">
+        <span class="team-split__side team-split__side--home">
+            <span class="team-split__flag">{% flag_image match.home_team match.home_label %}</span>
+            <span>{{ match.home_label }}</span>
+        </span>
+        <strong class="team-split__middle">vs</strong>
+        <span class="team-split__side team-split__side--away">
+            <span class="team-split__flag">{% flag_image match.away_team match.away_label %}</span>
+            <span>{{ match.away_label }}</span>
+        </span>
+    </div>
+</a>
