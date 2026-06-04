@@ -13,24 +13,24 @@
         {% for row in rows %}
             <article class="match-card">
                 <div class="match-card__meta">
-                    <strong>Match {{ row.match.match_number }}</strong>
+                    <strong>Match {{ row.match|match_id }}</strong>
                     <span>{{ row.match.kickoff_at|cet_match_time }} &middot; {{ row.match.get_stage_display }}</span>
                 </div>
                 <div class="team-split team-split--readout">
-                    <div class="team-split__side team-split__side--home prediction-option{% if row.prediction.choice == "home" %} is-picked{% endif %}">
+                    <div class="team-split__side team-split__side--home prediction-option{% if row.prediction.choice == "home" %} is-picked{% endif %}{% if row.match.is_scored %}{% if row.prediction.choice == "home" and row.match.actual_outcome == "home" %} prediction-option--correct-bet{% elif row.prediction.choice == "home" %} prediction-option--wrong-bet{% endif %}{% endif %}">
                         <span class="team-split__flag">{% flag_image row.match.home_team row.match.home_label %}</span>
                         <span>{{ row.match.home_label }}</span>
                     </div>
-                    <div class="team-split__middle prediction-option prediction-option--draw{% if row.prediction.choice == "draw" %} is-picked{% endif %}">
+                    <div class="team-split__middle prediction-option prediction-option--draw{% if row.prediction.choice == "draw" %} is-picked{% endif %}{% if row.match.is_scored %}{% if row.prediction.choice == "draw" and row.match.actual_outcome == "draw" %} prediction-option--correct-bet{% elif row.prediction.choice == "draw" %} prediction-option--wrong-bet{% endif %}{% endif %}">
                         <span>{% if row.match.is_scored %}{{ row.match.score_label }}{% else %}Draw{% endif %}</span>
                     </div>
-                    <div class="team-split__side team-split__side--away prediction-option{% if row.prediction.choice == "away" %} is-picked{% endif %}">
+                    <div class="team-split__side team-split__side--away prediction-option{% if row.prediction.choice == "away" %} is-picked{% endif %}{% if row.match.is_scored %}{% if row.prediction.choice == "away" and row.match.actual_outcome == "away" %} prediction-option--correct-bet{% elif row.prediction.choice == "away" %} prediction-option--wrong-bet{% endif %}{% endif %}">
                         <span class="team-split__flag">{% flag_image row.match.away_team row.match.away_label %}</span>
                         <span>{{ row.match.away_label }}</span>
                     </div>
                 </div>
                 <div class="prediction-readout prediction-readout--detail">
-                    <span class="prediction-option prediction-option--none{% if not row.prediction or row.prediction.choice == "none" %} is-picked{% endif %}">No bet</span>
+                    <span class="prediction-option prediction-option--none{% if not row.prediction or row.prediction.choice == 'none' %} is-picked{% endif %}{% if row.match.is_scored and row.prediction.choice != 'home' and row.prediction.choice != 'draw' and row.prediction.choice != 'away' %} prediction-option--no-bet{% endif %}">No bet</span>
                     <strong>{{ row.points }} pts</strong>
                 </div>
             </article>

@@ -15,7 +15,7 @@
             <div class="bracket__matches">
                 {% for match in matches %}
                     <article class="bracket-match">
-                        <small>Match {{ match.match_number }} &middot; {{ match.kickoff_at|cet_match_time }}</small>
+                        <small>Match {{ match|match_id }} &middot; {{ match.kickoff_at|cet_match_time }}</small>
                         <strong class="team-inline">{% flag_image match.home_team match.home_label %} {{ match.home_label }}</strong>
                         <span>{{ match.score_label }}</span>
                         <strong class="team-inline">{% flag_image match.away_team match.away_label %} {{ match.away_label }}</strong>

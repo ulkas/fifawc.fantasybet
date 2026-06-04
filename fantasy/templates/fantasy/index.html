@@ -59,8 +59,8 @@
             <a href="{% url 'fantasy:matches' %}">Full timeline</a>
         </div>
         <div class="match-list">
-            {% for match in completed_matches %}
-                {% include "fantasy/partials/match_summary.html" with match=match %}
+            {% for row in completed_matches_with_predictions %}
+                {% include "fantasy/partials/match_summary.html" with match=row.match prediction=row.prediction %}
             {% empty %}
                 <p>No completed matches yet.</p>
             {% endfor %}
@@ -68,7 +68,7 @@
     </div>
     <div class="panel">
         <div class="section-heading">
-            <h2>Leaders <span class="heading-note">(min {{ score_range.min_points }} - max {{ score_range.max_points }})</span></h2>
+            <h2>Leaders <span class="heading-note">(max {{ score_range.max_points }})</span></h2>
             <a href="{% url 'fantasy:leaderboard' %}">Full table</a>
         </div>
         <ol class="leader-list">

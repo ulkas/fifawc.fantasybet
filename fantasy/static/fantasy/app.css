@@ -1,7 +1,7 @@
 :root {
     color-scheme: dark;
-    --ink: #f3f5f1;
-    --muted: #a9b2aa;
+    --ink: #b8bfb3;
+    --muted: #868d82;
     --line: #343b36;
     --panel: #242826;
     --field: #1d211f;
@@ -301,6 +301,19 @@ input {
     color: #102238;
     box-shadow: inset 0 0 0 2px rgba(255,255,255,.18), 0 8px 18px rgba(102,183,239,.18);
 }
+/* Override draw styling for result states */
+.prediction-option--draw.prediction-option--correct-bet {
+    border-color: var(--grass) !important;
+    background: var(--grass) !important;
+    color: #10200d !important;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.2), 0 8px 18px rgba(95,179,74,.2) !important;
+}
+.prediction-option--draw.prediction-option--wrong-bet {
+    background: #c74747 !important;
+    border-color: #a03535 !important;
+    color: #f3f5f1 !important;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.15), 0 8px 18px rgba(199,71,71,.2) !important;
+}
 .prediction-option--none:has(input:checked),
 .prediction-option--none.is-picked {
     border-color: #d6dfd7;
@@ -342,6 +355,191 @@ input {
 }
 .prediction-readout--detail .prediction-option--none.is-picked {
     padding-left: 1.65rem;
+}
+.prediction-option--correct-bet {
+    border-color: var(--grass);
+    background: var(--grass);
+    color: #10200d;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.2), 0 8px 18px rgba(95,179,74,.2);
+}
+.team-split__side.prediction-option--correct-bet {
+    border-color: var(--grass);
+    background: var(--grass);
+    color: #10200d;
+}
+.team-split__side--away.prediction-option--correct-bet {
+    border-color: var(--grass);
+    background: var(--grass);
+    color: #10200d;
+}
+.team-split__side--home.prediction-option--correct-bet {
+    border-color: var(--grass) !important;
+    background: var(--grass) !important;
+    color: #10200d;
+}
+.prediction-option--wrong-bet {
+    background: #c74747;
+    border-color: #a03535;
+    color: #f3f5f1;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.15), 0 8px 18px rgba(199,71,71,.2);
+}
+.team-split__side.prediction-option--wrong-bet {
+    background: #c74747;
+    border-color: #a03535;
+    color: #f3f5f1;
+}
+.team-split__side--away.prediction-option--wrong-bet {
+    background: #c74747;
+    border-color: #a03535;
+    color: #f3f5f1;
+}
+.team-split__side--home.prediction-option--wrong-bet {
+    background: #c74747 !important;
+    border-color: #a03535 !important;
+    color: #f3f5f1;
+}
+.prediction-option--no-bet {
+    border-color: var(--grass);
+    background: var(--grass);
+    color: #10200d;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.2), 0 8px 18px rgba(95,179,74,.2);
+}
+
+/* Hide checkmark and "Picked" label for result states */
+.prediction-option--correct-bet::before,
+.prediction-option--correct-bet::after,
+.prediction-option--wrong-bet::before,
+.prediction-option--wrong-bet::after,
+.prediction-option--no-bet::before,
+.prediction-option--no-bet::after {
+    content: none !important;
+}
+
+/* Bet result indicators */
+.prediction-indicator--correct::after {
+    content: "✓";
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    background: var(--grass);
+    color: var(--bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+.prediction-indicator--wrong::after {
+    content: "✕";
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    background: #8f4d44;
+    color: #f3f5f1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+}
+.team-split__side {
+    position: relative;
+}
+.prediction-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    margin-left: 6px;
+    white-space: nowrap;
+}
+.team-split__middle .prediction-badge {
+    display: block;
+    margin: 0;
+    margin-top: 2px;
+    font-size: 0.7rem;
+}
+.prediction-indicator-left {
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+.prediction-indicator-left.correct {
+    color: var(--grass);
+}
+.prediction-indicator-left.wrong {
+    color: #ff6b6b;
+}
+/* Overlay predicted badge on middle score */
+.team-split--prediction-readout.prediction-draw-wrong .team-split__middle::after {
+    content: "✕";\n    position: absolute;
+    right: -24px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ff6b6b;
+    z-index: 10;
+}
+.team-split--prediction-readout.prediction-draw-wrong .team-split__middle::before {
+    content: "PREDICTED";
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: #8f4d44;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+    white-space: nowrap;
+}
+.team-split--prediction-readout.prediction-draw-correct .team-split__middle::after {
+    content: "✓";\n    position: absolute;
+    right: -24px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #7dd46f;
+    z-index: 10;
+}
+.team-split--prediction-readout.prediction-draw-correct .team-split__middle::before {
+    content: "PREDICTED";
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--grass);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+    white-space: nowrap;
+}
+.team-split__middle {
+    position: relative;
+}
+.match-card__no-bet {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    background: rgba(152, 152, 152, 0.25);
+    border-radius: 3px;
+    color: var(--muted);
+}
+.match-card {
+    position: relative;
 }
 .prediction-form input { width: auto; }
 .content-grid .prediction-form { grid-template-columns: 1fr; }

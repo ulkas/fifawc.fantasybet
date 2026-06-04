@@ -5,7 +5,7 @@
       "num": 1,
       "round": "Matchday 1",
       "date": "2026-06-11",
-      "time": "13:00 UTC-6",
+      "time": "21:00 UTC+2",
       "team1": "Mexico",
       "team2": "South Africa",
       "group": "Group A",
@@ -14,12 +14,62 @@
     {
       "num": 2,
       "round": "Matchday 1",
-      "date": "2026-06-11",
-      "time": "20:00 UTC-6",
+      "date": "2026-06-12",
+      "time": "04:00 UTC-5",
       "team1": "South Korea",
       "team2": "Czech Republic",
       "group": "Group A",
       "ground": "Guadalajara"
+    },
+    {
+      "num": 3,
+      "round": "Matchday 2",
+      "date": "2026-06-18",
+      "time": "18:00 UTC+1",
+      "team1": "Czech Republic",
+      "team2": "South Africa",
+      "group": "Group A",
+      "ground": "Atlanta"
+    },
+    {
+      "num": 4,
+      "round": "Matchday 2",
+      "date": "2026-06-19",
+      "time": "03:00 UTC-5",
+      "team1": "Mexico",
+      "team2": "South Korea",
+      "group": "Group A",
+      "ground": "Guadalajara"
+    },
+    {
+      "num": 5,
+      "round": "Matchday 3",
+      "date": "2026-06-25",
+      "time": "03:00 UTC-5",
+      "team1": "Czech Republic",
+      "team2": "Mexico",
+      "group": "Group A",
+      "ground": "Mexico City"
+    },
+    {
+      "num": 6,
+      "round": "Matchday 3",
+      "date": "2026-06-25",
+      "time": "03:00 UTC-5",
+      "team1": "South Africa",
+      "team2": "South Korea",
+      "group": "Group A",
+      "ground": "Monterrey"
+    },
+    {
+      "num": 7,
+      "round": "Matchday 1",
+      "date": "2026-06-12",
+      "time": "21:00 UTC+2",
+      "team1": "Canada",
+      "team2": "Bosnia & Herzegovina",
+      "group": "Group B",
+      "ground": "Toronto"
     },
     {
       "num": 73,

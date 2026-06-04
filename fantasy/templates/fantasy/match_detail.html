@@ -1,11 +1,12 @@
 {% extends "fantasy/base.html" %}
+{% load fantasy_time %}
 
-{% block title %}Match {{ match.match_number }} | WC 2026 Fantasy{% endblock %}
+{% block title %}Match {{ match|match_id }} | WC 2026 Fantasy{% endblock %}
 
 {% block content %}
 <section class="page-heading">
     <p class="eyebrow">Match details</p>
-    <h1>Match {{ match.match_number }}</h1>
+    <h1>Match {{ match|match_id }}</h1>
 </section>
 
 <section class="panel section-block match-detail-panel">

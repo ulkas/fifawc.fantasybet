@@ -1,29 +1,29 @@
 {% load fantasy_flags fantasy_time %}
 <article class="match-card">
     <div class="match-card__meta">
-        <strong>Match {{ match.match_number }}</strong>
+        <strong>Match {{ match|match_id }}</strong>
         <span>{{ match.kickoff_at|cet_match_time }} &middot; {{ match.venue.name|default:"TBD" }}</span>
     </div>
     <form method="post" action="{% url 'fantasy:predict' match.match_number %}" class="prediction-form">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.get_full_path }}">
         <div class="team-split team-split--interactive">
-            <label class="team-split__side team-split__side--home prediction-option">
+            <label class="team-split__side team-split__side--home prediction-option{% if prediction and prediction.choice == 'home' and not match.is_scored %} is-picked{% endif %}{% if match.is_scored %}{% if prediction and prediction.choice == 'home' and match.actual_outcome == 'home' %} prediction-option--correct-bet{% elif prediction and prediction.choice == 'home' %} prediction-option--wrong-bet{% endif %}{% endif %}">
                 <input type="radio" name="choice" value="home" {% if prediction.choice == "home" %}checked{% endif %} {% if match.is_locked %}disabled{% else %}onchange="this.form.submit()"{% endif %}>
                 <span class="team-split__flag">{% flag_image match.home_team match.home_label %}</span>
                 <span>{{ match.home_label }}</span>
             </label>
-            <label class="team-split__middle prediction-option prediction-option--draw">
+            <label class="team-split__middle prediction-option prediction-option--draw{% if prediction and prediction.choice == 'draw' and not match.is_scored %} is-picked{% endif %}{% if match.is_scored %}{% if prediction and prediction.choice == 'draw' and match.actual_outcome == 'draw' %} prediction-option--correct-bet{% elif prediction and prediction.choice == 'draw' %} prediction-option--wrong-bet{% endif %}{% endif %}">
                 <input type="radio" name="choice" value="draw" {% if prediction.choice == "draw" %}checked{% endif %} {% if match.is_locked %}disabled{% else %}onchange="this.form.submit()"{% endif %}>
                 <span>{% if match.is_scored %}{{ match.score_label }}{% else %}Draw{% endif %}</span>
             </label>
-            <label class="team-split__side team-split__side--away prediction-option">
+            <label class="team-split__side team-split__side--away prediction-option{% if prediction and prediction.choice == 'away' and not match.is_scored %} is-picked{% endif %}{% if match.is_scored %}{% if prediction and prediction.choice == 'away' and match.actual_outcome == 'away' %} prediction-option--correct-bet{% elif prediction and prediction.choice == 'away' %} prediction-option--wrong-bet{% endif %}{% endif %}">
                 <input type="radio" name="choice" value="away" {% if prediction.choice == "away" %}checked{% endif %} {% if match.is_locked %}disabled{% else %}onchange="this.form.submit()"{% endif %}>
                 <span class="team-split__flag">{% flag_image match.away_team match.away_label %}</span>
                 <span>{{ match.away_label }}</span>
             </label>
         </div>
-        <label class="prediction-option prediction-option--none">
+        <label class="prediction-option prediction-option--none{% if not prediction %} is-picked{% elif prediction.choice == 'none' %} is-picked{% endif %}{% if match.is_scored %}{% if not prediction %} prediction-option--no-bet{% elif prediction.choice == 'none' %} prediction-option--no-bet{% endif %}{% endif %}">
             <input type="radio" name="choice" value="none" {% if not prediction or prediction.choice == "none" %}checked{% endif %} {% if match.is_locked %}disabled{% else %}onchange="this.form.submit()"{% endif %}>
             <span>No bet</span>
         </label>

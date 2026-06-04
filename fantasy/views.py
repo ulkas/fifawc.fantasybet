@@ -66,15 +66,19 @@ class LandingView(View):
     def context(self, request, gate_form):
         now = timezone.now()
         current_player = get_current_player(request)
-        upcoming_queryset = Match.objects.filter(kickoff_at__gte=now)
+        upcoming_queryset = Match.objects.filter(kickoff_at__gte=now, status__in=[Match.Status.SCHEDULED, Match.Status.LIVE])
         completed_queryset = Match.objects.filter(status=Match.Status.FINAL)
-        upcoming_matches = list(upcoming_queryset.select_related("home_team", "away_team", "venue")[:6])
+        upcoming_matches = list(upcoming_queryset.select_related("home_team", "away_team", "venue")[:3])
+        completed_matches = list(completed_queryset.select_related("home_team", "away_team", "venue").order_by("-kickoff_at", "-match_number")[:3])
+        
+        all_match_ids = [m.id for m in upcoming_matches + completed_matches]
         predictions = {}
         if current_player is not None:
             predictions = {
                 prediction.match_id: prediction
-                for prediction in Prediction.objects.filter(player=current_player, match__in=upcoming_matches)
+                for prediction in Prediction.objects.filter(player=current_player, match_id__in=all_match_ids)
             }
+        
         return {
             "gate_open": has_gate(request),
             "gate_configured": is_gate_password_configured(),
@@ -85,8 +89,11 @@ class LandingView(View):
             ],
             "upcoming_match_count": upcoming_queryset.count(),
             "completed_match_count": completed_queryset.count(),
-            "completed_matches": completed_queryset.select_related("home_team", "away_team", "venue").order_by("-kickoff_at", "-match_number")[:6],
-            "leaders": ranking_rows()[:6],
+            "completed_matches_with_predictions": [
+                {"match": match, "prediction": predictions.get(match.id)}
+                for match in completed_matches
+            ],
+            "leaders": ranking_rows(),
             "score_range": score_range(),
         }
 

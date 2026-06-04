@@ -20,6 +20,8 @@ On a fresh database, the first password submitted on the landing page becomes th
 - `python manage.py import_schedule`: stores FIFA/OpenFootball source snapshots and imports the schedule.
 - `python manage.py sync_scores`: refreshes final scores from configured free structured sources.
 - `python manage.py recompute_scores`: prints the current ranking.
+- `python manage.py simulate_matches setup`: activates test match results for demonstration and testing.
+- `python manage.py simulate_matches restore`: reverts simulation and restores original state.
 
 Run every app command through the container in normal development and production:
 
@@ -28,7 +30,10 @@ docker-compose exec -T web python manage.py test
 docker-compose exec -T web python manage.py check
 docker-compose exec -T web python manage.py import_schedule
 docker-compose exec -T web python manage.py sync_scores
+docker-compose exec -T web python manage.py simulate_matches setup
 ```
+
+See [simulation.md](docs/simulation.md) for detailed simulation documentation.
 
 ## Prediction UI
 
