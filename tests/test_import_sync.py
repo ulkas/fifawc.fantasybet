@@ -21,7 +21,7 @@ class ImportSyncTests(TestCase):
         match = Match.objects.get(match_number=1)
         self.assertEqual(match.home_team.flag, flag_emoji("MX"))
         self.assertEqual(match.away_team.flag, flag_emoji("ZA"))
-        self.assertEqual(Match.objects.get(match_number=73).stage, Match.Stage.ROUND_OF_32)
+        self.assertEqual(Match.objects.get(match_number=3).stage, Match.Stage.GROUP)
         self.assertEqual(DataSnapshot.objects.filter(source=DataSnapshot.Source.OPENFOOTBALL, parsed_ok=True).count(), 1)
         self.assertEqual(SyncRun.objects.filter(kind=SyncRun.Kind.IMPORT).count(), 1)
 
