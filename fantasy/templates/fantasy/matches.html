@@ -9,6 +9,11 @@
     <h1>Matches and predictions</h1>
 </section>
 
+<div class="sort-controls">
+    <a href="?sort=group" class="sort-button {% if sort_by == 'group' %}active{% endif %}">By Group</a>
+    <a href="?sort=time" class="sort-button {% if sort_by == 'time' %}active{% endif %}">By Time</a>
+</div>
+
 {% for group, rows in groups.items %}
     <section class="panel section-block">
         <div class="section-heading">

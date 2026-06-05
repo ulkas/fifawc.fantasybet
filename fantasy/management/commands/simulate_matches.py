@@ -95,61 +95,9 @@ class Command(BaseCommand):
             match2.save()
             self.stdout.write(self.style.SUCCESS(f"✓ Match 2: South Korea 1 - 2 Czech Republic (Jun 12, 04:00 CET)"))
 
-            # Match 3: Czech Republic 2 - 0 South Africa (home win)
-            match3 = Match.objects.get(match_number=3)
-            current_state["match_3"]["status"] = match3.status
-            current_state["match_3"]["home_score"] = match3.home_score
-            current_state["match_3"]["away_score"] = match3.away_score
-            current_state["match_3"]["kickoff_at"] = match3.kickoff_at
-            
-            match3.status = Match.Status.FINAL
-            match3.home_score = 2
-            match3.away_score = 0
-            match3.kickoff_at = june_18_1800_utc
-            match3.save()
-            self.stdout.write(self.style.SUCCESS(f"✓ Match 3: Czech Republic 2 - 0 South Africa (Jun 18, 18:00 CET)"))
 
-            # Match 4: Mexico 1 - 1 South Korea (draw)
-            match4 = Match.objects.get(match_number=4)
-            current_state["match_4"]["status"] = match4.status
-            current_state["match_4"]["home_score"] = match4.home_score
-            current_state["match_4"]["away_score"] = match4.away_score
-            current_state["match_4"]["kickoff_at"] = match4.kickoff_at
-            
-            match4.status = Match.Status.FINAL
-            match4.home_score = 1
-            match4.away_score = 1
-            match4.kickoff_at = june_19_0300_utc
-            match4.save()
-            self.stdout.write(self.style.SUCCESS(f"✓ Match 4: Mexico 1 - 1 South Korea (Jun 19, 03:00 CET)"))
 
-            # Match 5: Czech Republic 2 - 1 Mexico (home win)
-            match5 = Match.objects.get(match_number=5)
-            current_state["match_5"]["status"] = match5.status
-            current_state["match_5"]["home_score"] = match5.home_score
-            current_state["match_5"]["away_score"] = match5.away_score
-            current_state["match_5"]["kickoff_at"] = match5.kickoff_at
             
-            match5.status = Match.Status.FINAL
-            match5.home_score = 2
-            match5.away_score = 1
-            match5.kickoff_at = june_25_0300_utc
-            match5.save()
-            self.stdout.write(self.style.SUCCESS(f"✓ Match 5: Czech Republic 2 - 1 Mexico (Jun 25, 03:00 CET)"))
-
-            # Match 6: South Africa 1 - 0 South Korea (home win)
-            match6 = Match.objects.get(match_number=6)
-            current_state["match_6"]["status"] = match6.status
-            current_state["match_6"]["home_score"] = match6.home_score
-            current_state["match_6"]["away_score"] = match6.away_score
-            current_state["match_6"]["kickoff_at"] = match6.kickoff_at
-            
-            match6.status = Match.Status.FINAL
-            match6.home_score = 1
-            match6.away_score = 0
-            match6.kickoff_at = june_25_0300_utc
-            match6.save()
-            self.stdout.write(self.style.SUCCESS(f"✓ Match 6: South Africa 1 - 0 South Korea (Jun 25, 03:00 CET)"))
 
             # Match 7 (Group B): Canada 1 - 1 Bosnia & Herzegovina (draw)
             match7 = Match.objects.get(match_number=7)

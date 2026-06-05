@@ -140,24 +140,52 @@ class MatchListView(View):
     @require_player
     def get(self, request):
         player = get_current_player(request)
+        # Get sort preference from URL, session, or default to "time"
+        sort_by = request.GET.get("sort") or request.session.get("match_sort_by", "time")
+        # Save sort preference to session
+        request.session["match_sort_by"] = sort_by
+        request.session.modified = True
         predictions = {prediction.match_id: prediction for prediction in Prediction.objects.filter(player=player)}
-        groups = defaultdict(list)
-        knockouts = []
-        for match in Match.objects.select_related("home_team", "away_team", "venue"):
-            row = {"match": match, "prediction": predictions.get(match.id)}
-            if match.stage == Match.Stage.GROUP:
-                groups[match.group or "Group stage"].append(row)
-            else:
-                knockouts.append(row)
-        return render(
-            request,
-            self.template_name,
-            {
-                "groups": dict(groups),
-                "knockouts": knockouts,
-                "prediction_choices": Prediction.Choice,
-            },
-        )
+        
+        if sort_by == "time":
+            # Sort by kickoff time
+            all_matches = []
+            time_groups = defaultdict(list)
+            for match in Match.objects.select_related("home_team", "away_team", "venue"):
+                row = {"match": match, "prediction": predictions.get(match.id)}
+                all_matches.append(row)
+                # Group by stage for display
+                time_groups[match.get_stage_display()].append(row)
+            return render(
+                request,
+                self.template_name,
+                {
+                    "sort_by": sort_by,
+                    "groups": dict(time_groups),
+                    "knockouts": [],
+                    "prediction_choices": Prediction.Choice,
+                },
+            )
+        else:
+            # Sort by group (default)
+            groups = defaultdict(list)
+            knockouts = []
+            for match in Match.objects.select_related("home_team", "away_team", "venue"):
+                row = {"match": match, "prediction": predictions.get(match.id)}
+                if match.stage == Match.Stage.GROUP:
+                    groups[match.group or "Group stage"].append(row)
+                else:
+                    knockouts.append(row)
+            return render(
+                request,
+                self.template_name,
+                {
+                    "sort_by": sort_by,
+                    "groups": dict(groups),
+                    "knockouts": knockouts,
+                    "prediction_choices": Prediction.Choice,
+                },
+            )
 
 
 class MatchDetailView(View):
