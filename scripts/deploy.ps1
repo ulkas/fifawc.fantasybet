@@ -524,6 +524,8 @@ cd "$APP_DIR"
 
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml exec -T web python manage.py check < /dev/null
+docker compose -f docker-compose.prod.yml exec -T web python manage.py import_schedule < /dev/null
+docker compose -f docker-compose.prod.yml exec -T web python manage.py sync_scores < /dev/null
 
 status=""
 for attempt in $(seq 1 12); do
