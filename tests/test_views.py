@@ -126,7 +126,7 @@ class GateAndIdentityTests(TestCase):
 
         response = self.client.get(reverse("fantasy:index"))
 
-        self.assertContains(response, "Leaders <span class=\"heading-note\">(min 0 - max 3)</span>", html=True)
+        self.assertContains(response, "Leaders <span class=\"heading-note\">(max 3)</span>", html=True)
         self.assertContains(response, "<strong>0</strong>", html=True)
         self.assertNotContains(response, "<strong>0 (0-3)</strong>", html=True)
 

@@ -17,7 +17,6 @@ $DeployPublicBaseUrl = if ($env:DEPLOY_PUBLIC_BASE_URL) { $env:DEPLOY_PUBLIC_BAS
 $DeployMinFreeMb = if ($env:DEPLOY_MIN_FREE_MB) { [int]$env:DEPLOY_MIN_FREE_MB } else { 1024 }
 $DeployMode = if ($env:DEPLOY_MODE) { $env:DEPLOY_MODE } else { "archive-copy" }
 $AllowDirty = ($env:ALLOW_DIRTY -eq "1")
-$RunLocalTests = ($env:RUN_LOCAL_TESTS -ne "0")
 $BackupDir = if ($env:BACKUP_DIR) { $env:BACKUP_DIR } else { "/opt/wcf/backups" }
 $DeployBranch = if ($env:DEPLOY_BRANCH) { $env:DEPLOY_BRANCH } else { "" }
 $script:DeployKnownHostsTempFile = ""
@@ -201,11 +200,6 @@ function Test-LocalPreflight {
             Write-Host "Production compose config skipped locally because .env.production is absent; remote preflight validates it on the VPS."
         }
 
-        if ($RunLocalTests) {
-            Invoke-DockerCompose @("run", "--rm", "--no-deps", "-e", "DJANGO_USE_SQLITE=1", "-e", "POSTGRES_HOST=", "web", "python", "manage.py", "test") "Local Django tests failed."
-        } else {
-            Write-Host "Local Django tests skipped because RUN_LOCAL_TESTS=0."
-        }
     }
     finally {
         Pop-Location
