@@ -35,8 +35,8 @@ def points_for(player: Player, match: Match, prediction: Prediction | None) -> i
 
 def score_range() -> ScoreRange:
     scored_count = Match.objects.filter(status=Match.Status.FINAL, home_score__isnull=False, away_score__isnull=False).count()
-    total_count = Match.objects.count()
-    return ScoreRange(min_points=scored_count, max_points=total_count * 3)
+    # Preliminary max is based on matches already scored
+    return ScoreRange(min_points=scored_count, max_points=scored_count * 3)
 
 
 def ranking_rows() -> list[RankingRow]:
