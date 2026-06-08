@@ -4,28 +4,97 @@
         <strong>Match {{ match|match_id }}</strong>
         <span>{{ match.kickoff_at|cet_match_time }} &middot; {{ match.venue.name|default:"TBD" }}</span>
     </div>
-    <form method="post" action="{% url 'fantasy:predict' match.match_number %}" class="prediction-form">
+    <form method="post" action="{% url 'fantasy:predict' match.match_number %}" class="prediction-form" data-ajax-predict>
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.get_full_path }}">
         <div class="team-split team-split--interactive">
             <label class="team-split__side team-split__side--home prediction-option{% if prediction and prediction.choice == 'home' and not match.is_scored %} is-picked{% endif %}{% if match.is_scored %}{% if prediction and prediction.choice == 'home' and match.actual_outcome == 'home' %} prediction-option--correct-bet{% elif prediction and prediction.choice == 'home' %} prediction-option--wrong-bet{% endif %}{% endif %}">
-                <input type="radio" name="choice" value="home" {% if prediction.choice == "home" %}checked{% endif %} {% if match.is_locked %}disabled{% else %}onchange="this.form.submit()"{% endif %}>
+                <input type="radio" name="choice" value="home" {% if prediction.choice == "home" %}checked{% endif %} {% if match.is_locked %}disabled{% endif %}>
                 <span class="team-split__flag">{% flag_image match.home_team match.home_label %}</span>
                 <span>{{ match.home_label }}</span>
             </label>
             <label class="team-split__middle prediction-option prediction-option--draw{% if prediction and prediction.choice == 'draw' and not match.is_scored %} is-picked{% endif %}{% if match.is_scored %}{% if prediction and prediction.choice == 'draw' and match.actual_outcome == 'draw' %} prediction-option--correct-bet{% elif prediction and prediction.choice == 'draw' %} prediction-option--wrong-bet{% endif %}{% endif %}">
-                <input type="radio" name="choice" value="draw" {% if prediction.choice == "draw" %}checked{% endif %} {% if match.is_locked %}disabled{% else %}onchange="this.form.submit()"{% endif %}>
+                <input type="radio" name="choice" value="draw" {% if prediction.choice == "draw" %}checked{% endif %} {% if match.is_locked %}disabled{% endif %}>
                 <span>{% if match.is_scored %}{{ match.score_label }}{% else %}Draw{% endif %}</span>
             </label>
             <label class="team-split__side team-split__side--away prediction-option{% if prediction and prediction.choice == 'away' and not match.is_scored %} is-picked{% endif %}{% if match.is_scored %}{% if prediction and prediction.choice == 'away' and match.actual_outcome == 'away' %} prediction-option--correct-bet{% elif prediction and prediction.choice == 'away' %} prediction-option--wrong-bet{% endif %}{% endif %}">
-                <input type="radio" name="choice" value="away" {% if prediction.choice == "away" %}checked{% endif %} {% if match.is_locked %}disabled{% else %}onchange="this.form.submit()"{% endif %}>
+                <input type="radio" name="choice" value="away" {% if prediction.choice == "away" %}checked{% endif %} {% if match.is_locked %}disabled{% endif %}>
                 <span class="team-split__flag">{% flag_image match.away_team match.away_label %}</span>
                 <span>{{ match.away_label }}</span>
             </label>
         </div>
         <label class="prediction-option prediction-option--none{% if not prediction %} is-picked{% elif prediction.choice == 'none' %} is-picked{% endif %}{% if match.is_scored %}{% if not prediction %} prediction-option--no-bet{% elif prediction.choice == 'none' %} prediction-option--no-bet{% endif %}{% endif %}">
-            <input type="radio" name="choice" value="none" {% if not prediction or prediction.choice == "none" %}checked{% endif %} {% if match.is_locked %}disabled{% else %}onchange="this.form.submit()"{% endif %}>
+            <input type="radio" name="choice" value="none" {% if not prediction or prediction.choice == "none" %}checked{% endif %} {% if match.is_locked %}disabled{% endif %}>
             <span>No bet</span>
         </label>
     </form>
 </article>
+<script>
+(function () {
+  // The article is the previous sibling of this script tag
+  var article = document.currentScript.previousElementSibling;
+  var form = article ? article.querySelector('form[data-ajax-predict]') : null;
+  if (!form) {
+    console.warn("No form found for AJAX predict");
+    return;
+  }
+  
+  if (!window.fetch) {
+    // No fetch support — fall back to full-page submit on change
+    form.querySelectorAll('input[type=radio]').forEach(function (r) {
+      r.addEventListener('change', function () { form.submit(); });
+    });
+    return;
+  }
+  
+  form.addEventListener('change', function (e) {
+    if (e.target.type !== 'radio') return;
+    var choice = e.target.value;
+    console.log("Form change event: choice=" + choice);
+    
+    // Update all radios: uncheck all, check the new one
+    form.querySelectorAll('input[type=radio]').forEach(function (r) {
+      r.checked = (r.value === choice);
+    });
+    
+    // IMMEDIATELY update CSS: remove picked from all
+    var allOptions = form.querySelectorAll('.prediction-option');
+    console.log("Found " + allOptions.length + " prediction options");
+    allOptions.forEach(function (el) {
+      if (el.classList.contains('is-picked')) {
+        console.log("Removing is-picked from: " + el.textContent.substring(0, 20));
+        el.classList.remove('is-picked');
+      }
+    });
+    
+    // Find and add is-picked to selected
+    var selectedInput = form.querySelector('input[value="' + choice + '"]');
+    if (selectedInput && selectedInput.parentElement) {
+      console.log("Adding is-picked to parent of: " + selectedInput.value);
+      selectedInput.parentElement.classList.add('is-picked');
+    }
+    
+    var data = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest'},
+      body: data
+    }).then(function (res) {
+      console.log("Fetch response: " + res.status);
+      if (!res.ok) { 
+        console.error('AJAX response not OK: ' + res.status);
+        return Promise.reject(new Error("Response not OK"));
+      }
+      return res.json();
+    }).then(function (json) {
+      console.log('AJAX success:', json);
+      if (!json || !json.ok) { 
+        return Promise.reject(new Error("JSON not ok"));
+      }
+    }).catch(function (err) {
+      console.error('AJAX error, submitting form:', err);
+      form.submit();
+    });
+  });
+}());
+</script>

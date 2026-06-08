@@ -5,7 +5,7 @@ from collections import defaultdict
 from django.conf import settings
 from django.contrib import messages
 from django.db import IntegrityError
-from django.http import HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -218,6 +218,8 @@ class PredictionView(View):
             match=match,
             defaults={"choice": form.cleaned_data["choice"]},
         )
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": True, "choice": form.cleaned_data["choice"]})
         messages.success(request, f"Prediction saved for match {match.match_number}.")
         return HttpResponseRedirect(request.POST.get("next") or reverse("fantasy:matches"))
 
