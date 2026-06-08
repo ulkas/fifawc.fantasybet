@@ -48,7 +48,7 @@ class ScoringTests(TestCase):
         )
         self.assertFalse(upcoming.is_locked)
 
-    def test_score_range_is_static_for_the_league(self):
+    def test_score_range_grows_as_matches_are_scored(self):
         Prediction.objects.create(player=self.player, match=self.match, choice=Prediction.Choice.HOME)
         Match.objects.create(
             match_number=2,
@@ -67,5 +67,6 @@ class ScoringTests(TestCase):
 
         league_range = score_range()
 
+        # Only 1 scored match, so min=1 and max=3 (preliminary max based on scored matches)
         self.assertEqual(league_range.min_points, 1)
-        self.assertEqual(league_range.max_points, 9)
+        self.assertEqual(league_range.max_points, 3)

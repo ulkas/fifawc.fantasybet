@@ -115,7 +115,7 @@ class GateAndIdentityTests(TestCase):
 
         self.assertContains(response, "Jun 11, 21:00 CET")
 
-    def test_landing_leaders_show_static_score_range_in_heading(self):
+    def test_landing_leaders_show_preliminary_max_based_on_scored_matches(self):
         Player.objects.create(nick="ana", display_name="Ana", pin_hash="x")
         Match.objects.create(
             match_number=3,
@@ -126,7 +126,8 @@ class GateAndIdentityTests(TestCase):
 
         response = self.client.get(reverse("fantasy:index"))
 
-        self.assertContains(response, "Leaders <span class=\"heading-note\">(max 3)</span>", html=True)
+        # No scored matches yet, so max is 0
+        self.assertContains(response, "Leaders <span class=\"heading-note\">(max 0)</span>", html=True)
         self.assertContains(response, "<strong>0</strong>", html=True)
         self.assertNotContains(response, "<strong>0 (0-3)</strong>", html=True)
 
