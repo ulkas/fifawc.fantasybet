@@ -12,6 +12,7 @@ FLAG_CODES_BY_NAME = {
     "Austria": "at",
     "Belgium": "be",
     "Bosnia & Herzegovina": "ba",
+    "Bosnia and Herzegovina": "ba",
     "Brazil": "br",
     "Canada": "ca",
     "Cape Verde": "cv",

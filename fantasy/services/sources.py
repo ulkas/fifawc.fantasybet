@@ -47,6 +47,27 @@ COUNTRY_FLAGS = {
     "Tunisia": ("TUN", flag_emoji("TN")),
     "Uruguay": ("URU", flag_emoji("UY")),
     "USA": ("USA", flag_emoji("US")),
+    "South Korea": ("KOR", flag_emoji("KR")),
+    "Bosnia and Herzegovina": ("BIH", flag_emoji("BA")),
+    "Paraguay": ("PAR", flag_emoji("PY")),
+    "Haiti": ("HAI", flag_emoji("HT")),
+    "Turkey": ("TUR", flag_emoji("TR")),
+    "Qatar": ("QAT", flag_emoji("QA")),
+    "Curaçao": ("CUR", flag_emoji("CW")),
+    "Ivory Coast": ("CIV", flag_emoji("CI")),
+    "Cape Verde": ("CPV", flag_emoji("CV")),
+    "Democratic Republic of the Congo": ("COD", flag_emoji("CD")),
+    "Sweden": ("SWE", flag_emoji("SE")),
+    "Norway": ("NOR", flag_emoji("NO")),
+    "Iraq": ("IRQ", flag_emoji("IQ")),
+    "Senegal": ("SEN", flag_emoji("SN")),
+    "Austria": ("AUT", flag_emoji("AT")),
+    "Jordan": ("JOR", flag_emoji("JO")),
+    "Uzbekistan": ("UZB", flag_emoji("UZ")),
+    "Colombia": ("COL", flag_emoji("CO")),
+    "Panama": ("PAN", flag_emoji("PA")),
+    "Algeria": ("ALG", flag_emoji("DZ")),
+    "Croatia": ("CRO", flag_emoji("HR")),
 }
 
 
@@ -230,6 +251,17 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
                 dt = dt.replace(tzinfo=dt_timezone.utc)
             return dt.astimezone(dt_timezone.utc)
         except Exception:
+            # Try common non-ISO formats (e.g. MM/DD/YYYY HH:MM or MM/DD/YYYY HH:MM:SS)
+            s = str(value).strip()
+            patterns = ["%m/%d/%Y %H:%M", "%m/%d/%Y %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"]
+            for p in patterns:
+                try:
+                    dt = datetime.strptime(s, p)
+                    # assume UTC when no tz provided
+                    dt = dt.replace(tzinfo=dt_timezone.utc)
+                    return dt.astimezone(dt_timezone.utc)
+                except Exception:
+                    continue
             return None
 
     def _map_status(s: str) -> str:
@@ -252,6 +284,44 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
             if key in obj and obj.get(key) not in (None, ""):
                 return obj.get(key)
         return None
+
+    # Normalize team label variants to canonical forms used in DB/fixtures
+    LABEL_ALIASES = {
+        "united states": "USA",
+        "united states of america": "USA",
+        "us": "USA",
+        "u.s.": "USA",
+        "u.s.a.": "USA",
+    }
+    # extend with additional common variants
+    LABEL_ALIASES.update({
+        "democratic republic of the congo": "DR Congo",
+        "democratic republic of congo": "DR Congo",
+        "dr congo": "DR Congo",
+        "d.r. congo": "DR Congo",
+        "congo dr": "DR Congo",
+        "congo, dr": "DR Congo",
+        "ivory coast": "Ivory Coast",
+        "cote d'ivoire": "Ivory Coast",
+        "côte d'ivoire": "Ivory Coast",
+    })
+    # Bosnia ampersand/and variants
+    LABEL_ALIASES.update({
+        "bosnia & herzegovina": "Bosnia and Herzegovina",
+        "bosnia and herzegovina": "Bosnia and Herzegovina",
+    })
+
+    def _normalize_label(label: str) -> str:
+        if not label:
+            return ""
+        key = str(label).strip()
+        key_low = key.lower()
+        if key_low in LABEL_ALIASES:
+            return LABEL_ALIASES[key_low]
+        # common short forms: map 'usa' to 'USA'
+        if key_low == "usa":
+            return "USA"
+        return key
 
     def parse_worldcup26_matches(payload_text: str) -> list:
         try:
@@ -292,8 +362,8 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
             match_number = _to_int(ident)
 
             # team name candidates
-            home_label = _extract_field(obj, ["home_team_name_en", "home_team", "home", "team1", "team1_name", "home_name", "homeTeam", "homeTeamName"]) or ""
-            away_label = _extract_field(obj, ["away_team_name_en", "away_team", "away", "team2", "team2_name", "away_name", "awayTeam", "awayTeamName"]) or ""
+            home_label = _normalize_label(_extract_field(obj, ["home_team_name_en", "home_team", "home", "team1", "team1_name", "home_name", "homeTeam", "homeTeamName"]) or "")
+            away_label = _normalize_label(_extract_field(obj, ["away_team_name_en", "away_team", "away", "team2", "team2_name", "away_name", "awayTeam", "awayTeamName"]) or "")
 
             # scores
             home_score = _to_int(_extract_field(obj, ["home_score", "score1", "score_home", "homeGoals", "home_goals"]))
@@ -319,8 +389,8 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
             else:
                 status = _map_status(status_raw)
 
-            # kickoff
-            kickoff_raw = _extract_field(obj, ["datetime", "kickoff", "kickoff_at", "date_time", "date", "time"]) or _extract_field(obj, ["utcDate", "dateUtc"]) or None
+            # kickoff (accept 'local_date' and various candidate keys)
+            kickoff_raw = _extract_field(obj, ["datetime", "kickoff", "kickoff_at", "date_time", "date", "time", "local_date"]) or _extract_field(obj, ["utcDate", "dateUtc"]) or None
             kickoff = _parse_kickoff(kickoff_raw)
 
             normalized.append({
