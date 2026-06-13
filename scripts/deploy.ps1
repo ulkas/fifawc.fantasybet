@@ -548,6 +548,38 @@ docker compose -f docker-compose.prod.yml ps --format json 2>/dev/null | grep -E
     Invoke-RemoteScript $script @($DeployAppDir, $DeployPublicUrl)
 }
 
+function Ensure-RemoteCron {
+        param()
+        Write-Step "Ensure remote cron job for score sync"
+        $script = @'
+set -eu
+APP_DIR="$1"
+CRON_MARK="# wcf-sync-scores"
+CRON_SCRIPT="$APP_DIR/scripts/sync_scores_cron.sh"
+mkdir -p "$APP_DIR/scripts"
+cat > "$CRON_SCRIPT" <<'SH'
+#!/usr/bin/env bash
+set -eu
+# Usage: sync_scores_cron.sh <app_dir>
+APP_DIR="$1"
+cd "$APP_DIR"
+# Attempt to run sync inside the running compose stack; exit silently on failure.
+docker compose -f docker-compose.prod.yml exec -T web python manage.py sync_scores >/dev/null 2>&1 || true
+SH
+chmod 755 "$CRON_SCRIPT"
+
+existing="$(crontab -l 2>/dev/null || true)"
+line="*/10 * * * * /bin/bash $CRON_SCRIPT '$APP_DIR' $CRON_MARK"
+if echo "$existing" | grep -Fq "$CRON_MARK"; then
+    echo "Cron job already present"
+else
+    printf '%s\n%s\n' "$existing" "$line" | crontab -
+    echo "Installed cron job: $line"
+fi
+'@
+        Invoke-RemoteScript $script @($DeployAppDir)
+}
+
 switch ($Action) {
     "preflight" {
         Test-LocalPreflight
@@ -569,6 +601,7 @@ switch ($Action) {
         } else {
             Invoke-ArchiveDeploy
         }
+        Ensure-RemoteCron
         Test-RemotePostcheck
     }
     "postcheck" {

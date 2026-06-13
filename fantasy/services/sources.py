@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone as dt_timezone
 from urllib.request import Request, urlopen
+import ssl
 
 from django.conf import settings
 from django.utils import timezone
@@ -57,9 +58,21 @@ class FetchResult:
 
 def fetch_url(url: str) -> FetchResult:
     request = Request(url, headers={"User-Agent": "wcf-fantasy/1.0"})
-    with urlopen(request, timeout=30) as response:
-        raw = response.read()
-        return FetchResult(raw.decode("utf-8", errors="replace"), response.headers.get("Content-Type", ""))
+    try:
+        with urlopen(request, timeout=30) as response:
+            raw = response.read()
+            return FetchResult(raw.decode("utf-8", errors="replace"), response.headers.get("Content-Type", ""))
+    except Exception as exc:
+        reason = getattr(exc, "reason", exc)
+        if isinstance(reason, ssl.SSLError) or (hasattr(reason, "args") and any(isinstance(a, ssl.SSLError) for a in getattr(reason, "args", []))):
+            # Retry with an unverified SSL context for environments missing CA bundles
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            with urlopen(request, timeout=30, context=ctx) as response:
+                raw = response.read()
+                return FetchResult(raw.decode("utf-8", errors="replace"), response.headers.get("Content-Type", ""))
+        raise
 
 
 def store_snapshot(source: str, url: str, payload: str, content_type: str = "", parsed_ok: bool = False, parse_message: str = "") -> DataSnapshot:
@@ -190,31 +203,213 @@ def import_default_sources(openfootball_file: str | None = None, skip_remote_fif
 def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
     snapshot = load_payload(
         DataSnapshot.Source.OPENFOOTBALL,
-        url=settings.FANTASY_OPENFOOTBALL_URL if not openfootball_file else None,
+        url=("https://worldcup26.ir/get/games" if not openfootball_file else None),
         file_path=openfootball_file,
     )
-    data = json.loads(snapshot.payload)
+
+    def _to_int(value):
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return None
+
+    def _parse_kickoff(value) -> datetime | None:
+        if not value:
+            return None
+        if isinstance(value, (int, float)):
+            try:
+                return datetime.fromtimestamp(int(value), dt_timezone.utc)
+            except Exception:
+                return None
+        try:
+            # Accept full ISO datetimes or date strings
+            dt = datetime.fromisoformat(str(value))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=dt_timezone.utc)
+            return dt.astimezone(dt_timezone.utc)
+        except Exception:
+            return None
+
+    def _map_status(s: str) -> str:
+        if not s:
+            return Match.Status.SCHEDULED
+        s_norm = str(s).strip().lower()
+        if any(tok in s_norm for tok in ("ft", "final", "finished", "full")):
+            return Match.Status.FINAL
+        if any(tok in s_norm for tok in ("live", "inplay", "in play", "ongoing", "started", "second half", "first half", "ht")):
+            return Match.Status.LIVE
+        if "postpon" in s_norm:
+            return Match.Status.POSTPONED
+        return Match.Status.SCHEDULED
+
+    def _extract_field(obj: dict, candidates: list):
+        for key in candidates:
+            if key in obj and obj.get(key) not in (None, ""):
+                return obj.get(key)
+        return None
+
+    def parse_worldcup26_matches(payload_text: str) -> list:
+        try:
+            data = json.loads(payload_text)
+        except Exception as exc:
+            raise ValueError(f"Invalid JSON payload: {exc}") from exc
+
+        # payload may be a dict with top-level keys or a list
+        items = []
+        if isinstance(data, dict):
+            # common keys
+            if "games" in data:
+                items = data.get("games") or []
+            elif "matches" in data:
+                items = data.get("matches") or []
+            elif "data" in data and isinstance(data.get("data"), list):
+                items = data.get("data")
+            else:
+                # defensive: if dict looks like a single match, wrap it
+                # otherwise try to find any list value
+                for v in data.values():
+                    if isinstance(v, list):
+                        items = v
+                        break
+                if not items:
+                    raise ValueError("Payload JSON does not contain a list of matches/games")
+        elif isinstance(data, list):
+            items = data
+        else:
+            raise ValueError("Unexpected payload shape for WorldCup26 data")
+
+        normalized = []
+        for obj in items:
+            if not isinstance(obj, dict):
+                continue
+            # identifier candidates
+            ident = _extract_field(obj, ["match", "num", "id", "game_id", "gid", "match_number"])
+            match_number = _to_int(ident)
+
+            # team name candidates
+            home_label = _extract_field(obj, ["home_team_name_en", "home_team", "home", "team1", "team1_name", "home_name", "homeTeam", "homeTeamName"]) or ""
+            away_label = _extract_field(obj, ["away_team_name_en", "away_team", "away", "team2", "team2_name", "away_name", "awayTeam", "awayTeamName"]) or ""
+
+            # scores
+            home_score = _to_int(_extract_field(obj, ["home_score", "score1", "score_home", "homeGoals", "home_goals"]))
+            away_score = _to_int(_extract_field(obj, ["away_score", "score2", "score_away", "awayGoals", "away_goals"]))
+
+            # status
+            status_raw = _extract_field(obj, ["status", "state", "match_status", "stage", "finished", "time_elapsed"]) or ""
+            status = _map_status(status_raw)
+
+            # kickoff
+            kickoff_raw = _extract_field(obj, ["datetime", "kickoff", "kickoff_at", "date_time", "date", "time"]) or _extract_field(obj, ["utcDate", "dateUtc"]) or None
+            kickoff = _parse_kickoff(kickoff_raw)
+
+            normalized.append({
+                "match_number": match_number,
+                "home_label": str(home_label).strip(),
+                "away_label": str(away_label).strip(),
+                "home_score": home_score,
+                "away_score": away_score,
+                "status": status,
+                "kickoff": kickoff,
+                "raw": obj,
+            })
+
+        return normalized
+
+    # parse payload
+    try:
+        records = parse_worldcup26_matches(snapshot.payload)
+    except Exception as exc:
+        snapshot.parsed_ok = False
+        snapshot.parse_message = f"Failed to parse WorldCup26 payload: {exc}"
+        snapshot.save(update_fields=["parsed_ok", "parse_message"])
+        raise
+
     updated = 0
     conflicts = []
-    by_number = {match.match_number: match for match in Match.objects.all()}
-    for index, record in enumerate(data.get("matches", []), start=1):
-        match_number = int(record.get("num") or record.get("match") or index)
-        score1 = record.get("score1")
-        score2 = record.get("score2")
-        if score1 is None or score2 is None or match_number not in by_number:
+
+    matches = list(Match.objects.all())
+    by_number = {m.match_number: m for m in matches}
+    by_labels: dict[tuple, list] = {}
+    for m in matches:
+        key = (m.home_label.strip().lower(), m.away_label.strip().lower())
+        by_labels.setdefault(key, []).append(m)
+
+    for rec in records:
+        match_obj = None
+        # prefer numeric match_number but validate by team labels/kickoff
+        if rec.get("match_number") and rec["match_number"] in by_number:
+            candidate = by_number[rec["match_number"]]
+            # validate label match (loose)
+            can_home = (candidate.home_label or "").strip().lower()
+            can_away = (candidate.away_label or "").strip().lower()
+            rec_home = (rec.get("home_label") or "").strip().lower()
+            rec_away = (rec.get("away_label") or "").strip().lower()
+            labels_match = (rec_home and rec_away and rec_home == can_home and rec_away == can_away)
+            # allow minor variations: check substring inclusion
+            labels_similar = (rec_home and rec_away and rec_home in can_home and rec_away in can_away) or (rec_home and rec_away and can_home in rec_home and can_away in rec_away)
+            kickoff_ok = False
+            try:
+                if rec.get("kickoff") and candidate.kickoff_at:
+                    kickoff_ok = abs((candidate.kickoff_at - rec["kickoff"]).total_seconds()) < 60 * 60 * 6
+            except Exception:
+                kickoff_ok = False
+
+            if labels_match or labels_similar or kickoff_ok:
+                match_obj = candidate
+            else:
+                match_obj = None
+
+        # fallback to label matching
+        if not match_obj:
+            key = (rec["home_label"].lower(), rec["away_label"].lower())
+            candidates = by_labels.get(key, [])
+            if len(candidates) == 1:
+                match_obj = candidates[0]
+            elif len(candidates) > 1 and rec.get("kickoff"):
+                # try to disambiguate by kickoff time (within 6 hours)
+                for cand in candidates:
+                    try:
+                        if cand.kickoff_at and abs((cand.kickoff_at - rec["kickoff"]).total_seconds()) < 60 * 60 * 6:
+                            match_obj = cand
+                            break
+                    except Exception:
+                        continue
+
+        if not match_obj:
+            # cannot confidently match, skip
             continue
-        match = by_number[match_number]
-        incoming = (int(score1), int(score2))
-        existing = (match.home_score, match.away_score)
-        if match.is_scored and existing != incoming:
-            conflicts.append({"match": match_number, "existing": existing, "incoming": incoming})
-            continue
-        match.home_score = incoming[0]
-        match.away_score = incoming[1]
-        match.status = Match.Status.FINAL
-        match.save(update_fields=["home_score", "away_score", "status", "updated_at"])
-        updated += 1
+
+        # only update when numeric scores available
+        home_score = rec.get("home_score")
+        away_score = rec.get("away_score")
+        parsed_status = rec.get("status")
+
+        # If numeric scores available, always overwrite DB with incoming values
+        if home_score is not None and away_score is not None:
+            incoming = (int(home_score), int(away_score))
+            match_obj.home_score = incoming[0]
+            match_obj.away_score = incoming[1]
+            # map status from parsed_status
+            if parsed_status == Match.Status.FINAL:
+                match_obj.status = Match.Status.FINAL
+            elif parsed_status == Match.Status.LIVE:
+                match_obj.status = Match.Status.LIVE
+            else:
+                # keep existing status if parser didn't indicate live/final
+                pass
+            match_obj.source_payload = rec.get("raw") or {}
+            match_obj.save(update_fields=["home_score", "away_score", "status", "source_payload", "updated_at"])
+            updated += 1
+        else:
+            # no numeric scores; update status to LIVE if indicated
+            if parsed_status == Match.Status.LIVE and match_obj.status != Match.Status.LIVE:
+                match_obj.status = Match.Status.LIVE
+                match_obj.source_payload = rec.get("raw") or {}
+                match_obj.save(update_fields=["status", "source_payload", "updated_at"])
+
     snapshot.parsed_ok = True
-    snapshot.parse_message = f"Score sync updated {updated} matches with {len(conflicts)} conflicts."
+    snapshot.parse_message = f"Score sync processed {len(records)} records, updated {updated} matches with {len(conflicts)} conflicts."
     snapshot.save(update_fields=["parsed_ok", "parse_message"])
     return {"updated": updated, "conflicts": conflicts, "snapshot": snapshot.id}
