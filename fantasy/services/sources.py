@@ -235,6 +235,9 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
     def _map_status(s: str) -> str:
         if not s:
             return Match.Status.SCHEDULED
+        # Treat boolean True as finished
+        if isinstance(s, bool):
+            return Match.Status.FINAL if s else Match.Status.SCHEDULED
         s_norm = str(s).strip().lower()
         if any(tok in s_norm for tok in ("ft", "final", "finished", "full")):
             return Match.Status.FINAL
@@ -298,7 +301,23 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
 
             # status
             status_raw = _extract_field(obj, ["status", "state", "match_status", "stage", "finished", "time_elapsed"]) or ""
-            status = _map_status(status_raw)
+            # If the source provides an explicit 'finished' flag (bool or numeric), treat it as FINAL
+            finished_flag = None
+            if "finished" in obj:
+                val = obj.get("finished")
+                if isinstance(val, bool):
+                    finished_flag = val
+                else:
+                    try:
+                        if int(val) != 0:
+                            finished_flag = True
+                    except Exception:
+                        if str(val).strip().lower() in ("true", "yes", "1"):
+                            finished_flag = True
+            if finished_flag is True:
+                status = Match.Status.FINAL
+            else:
+                status = _map_status(status_raw)
 
             # kickoff
             kickoff_raw = _extract_field(obj, ["datetime", "kickoff", "kickoff_at", "date_time", "date", "time"]) or _extract_field(obj, ["utcDate", "dateUtc"]) or None
