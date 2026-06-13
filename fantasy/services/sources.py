@@ -391,14 +391,8 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
             incoming = (int(home_score), int(away_score))
             match_obj.home_score = incoming[0]
             match_obj.away_score = incoming[1]
-            # map status from parsed_status
-            if parsed_status == Match.Status.FINAL:
-                match_obj.status = Match.Status.FINAL
-            elif parsed_status == Match.Status.LIVE:
-                match_obj.status = Match.Status.LIVE
-            else:
-                # keep existing status if parser didn't indicate live/final
-                pass
+            # numeric scores are authoritative — mark match as FINAL
+            match_obj.status = Match.Status.FINAL
             match_obj.source_payload = rec.get("raw") or {}
             match_obj.save(update_fields=["home_score", "away_score", "status", "source_payload", "updated_at"])
             updated += 1
