@@ -422,7 +422,8 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
     by_number = {m.match_number: m for m in matches}
     by_labels: dict[tuple, list] = {}
     for m in matches:
-        key = (m.home_label.strip().lower(), m.away_label.strip().lower())
+        # normalize DB labels using the same normalization applied to incoming payloads
+        key = (_normalize_label(m.home_label).strip().lower(), _normalize_label(m.away_label).strip().lower())
         by_labels.setdefault(key, []).append(m)
 
     for rec in records:
@@ -431,8 +432,8 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
         if rec.get("match_number") and rec["match_number"] in by_number:
             candidate = by_number[rec["match_number"]]
             # validate label match (loose)
-            can_home = (candidate.home_label or "").strip().lower()
-            can_away = (candidate.away_label or "").strip().lower()
+            can_home = _normalize_label(candidate.home_label).strip().lower()
+            can_away = _normalize_label(candidate.away_label).strip().lower()
             rec_home = (rec.get("home_label") or "").strip().lower()
             rec_away = (rec.get("away_label") or "").strip().lower()
             labels_match = (rec_home and rec_away and rec_home == can_home and rec_away == can_away)
