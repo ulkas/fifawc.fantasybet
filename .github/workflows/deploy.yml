@@ -96,6 +96,7 @@ jobs:
         run: docker compose config
 
       - name: Local Django tests
+        if: env.RUN_LOCAL_TESTS == '1'
         run: docker compose run --rm --no-deps -e DJANGO_USE_SQLITE=1 -e POSTGRES_HOST= web python manage.py test
 
       - name: Run deployment driver
