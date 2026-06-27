@@ -31,7 +31,7 @@ jobs:
       DEPLOY_APP_DIR: ${{ secrets.DEPLOY_APP_DIR || '/opt/wcf' }}
       DEPLOY_PUBLIC_URL: ${{ secrets.DEPLOY_PUBLIC_URL || 'https://ulkas.duckdns.org/fantasy/' }}
       DEPLOY_PUBLIC_BASE_URL: ${{ secrets.DEPLOY_PUBLIC_BASE_URL || 'https://ulkas.duckdns.org/fantasy' }}
-      DEPLOY_MIN_FREE_MB: ${{ secrets.DEPLOY_MIN_FREE_MB || '1024' }}
+      DEPLOY_MIN_FREE_MB: ${{ secrets.DEPLOY_MIN_FREE_MB || '64' }}
       DEPLOY_MODE: archive-copy
       RUN_LOCAL_TESTS: "0"
 
