@@ -245,19 +245,16 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
             except Exception:
                 return None
         try:
-            # Accept full ISO datetimes or date strings
             dt = datetime.fromisoformat(str(value))
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=dt_timezone.utc)
             return dt.astimezone(dt_timezone.utc)
         except Exception:
-            # Try common non-ISO formats (e.g. MM/DD/YYYY HH:MM or MM/DD/YYYY HH:MM:SS)
             s = str(value).strip()
             patterns = ["%m/%d/%Y %H:%M", "%m/%d/%Y %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"]
             for p in patterns:
                 try:
                     dt = datetime.strptime(s, p)
-                    # assume UTC when no tz provided
                     dt = dt.replace(tzinfo=dt_timezone.utc)
                     return dt.astimezone(dt_timezone.utc)
                 except Exception:
@@ -267,7 +264,6 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
     def _map_status(s: str) -> str:
         if not s:
             return Match.Status.SCHEDULED
-        # Treat boolean True as finished
         if isinstance(s, bool):
             return Match.Status.FINAL if s else Match.Status.SCHEDULED
         s_norm = str(s).strip().lower()
@@ -285,7 +281,6 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
                 return obj.get(key)
         return None
 
-    # Normalize team label variants to canonical forms used in DB/fixtures
     LABEL_ALIASES = {
         "united states": "USA",
         "united states of america": "USA",
@@ -293,7 +288,6 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
         "u.s.": "USA",
         "u.s.a.": "USA",
     }
-    # extend with additional common variants
     LABEL_ALIASES.update({
         "democratic republic of the congo": "DR Congo",
         "democratic republic of congo": "DR Congo",
@@ -305,7 +299,6 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
         "cote d'ivoire": "Ivory Coast",
         "côte d'ivoire": "Ivory Coast",
     })
-    # Bosnia ampersand/and variants
     LABEL_ALIASES.update({
         "bosnia & herzegovina": "Bosnia and Herzegovina",
         "bosnia and herzegovina": "Bosnia and Herzegovina",
@@ -318,10 +311,44 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
         key_low = key.lower()
         if key_low in LABEL_ALIASES:
             return LABEL_ALIASES[key_low]
-        # common short forms: map 'usa' to 'USA'
         if key_low == "usa":
             return "USA"
         return key
+
+    def _normalized_key(label: str) -> str:
+        return _normalize_label(label).strip().lower()
+
+    def _candidate_label_keys(*labels: str) -> set[str]:
+        keys = set()
+        for label in labels:
+            key = _normalized_key(label)
+            if key:
+                keys.add(key)
+        return keys
+
+    def _display_label(name_label: str, placeholder_label: str) -> str:
+        return (name_label or placeholder_label or "").strip()
+
+    def _match_label_keys(match_obj: Match, side: str) -> set[str]:
+        source_payload = match_obj.source_payload or {}
+        current_label = getattr(match_obj, f"{side}_label", "")
+        team_obj = getattr(match_obj, f"{side}_team", None)
+        payload_name = source_payload.get(f"{side}_team_name_en", "")
+        payload_placeholder = source_payload.get(f"{side}_team_label", "")
+        team_name = team_obj.name if team_obj else ""
+        return _candidate_label_keys(current_label, team_name, payload_name, payload_placeholder)
+
+    def _record_label_keys(record: dict, side: str) -> set[str]:
+        return _candidate_label_keys(
+            record.get(f"{side}_label", ""),
+            record.get(f"{side}_placeholder_label", ""),
+        )
+
+    def _group_key(value: str) -> str:
+        clean = str(value or "").strip().lower()
+        if clean.startswith("group "):
+            clean = clean.removeprefix("group ").strip()
+        return clean
 
     def parse_worldcup26_matches(payload_text: str) -> list:
         try:
@@ -329,10 +356,8 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
         except Exception as exc:
             raise ValueError(f"Invalid JSON payload: {exc}") from exc
 
-        # payload may be a dict with top-level keys or a list
         items = []
         if isinstance(data, dict):
-            # common keys
             if "games" in data:
                 items = data.get("games") or []
             elif "matches" in data:
@@ -340,8 +365,6 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
             elif "data" in data and isinstance(data.get("data"), list):
                 items = data.get("data")
             else:
-                # defensive: if dict looks like a single match, wrap it
-                # otherwise try to find any list value
                 for v in data.values():
                     if isinstance(v, list):
                         items = v
@@ -357,21 +380,20 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
         for obj in items:
             if not isinstance(obj, dict):
                 continue
-            # identifier candidates
             ident = _extract_field(obj, ["match", "num", "id", "game_id", "gid", "match_number"])
             match_number = _to_int(ident)
 
-            # team name candidates
-            home_label = _normalize_label(_extract_field(obj, ["home_team_name_en", "home_team", "home", "team1", "team1_name", "home_name", "homeTeam", "homeTeamName"]) or "")
-            away_label = _normalize_label(_extract_field(obj, ["away_team_name_en", "away_team", "away", "team2", "team2_name", "away_name", "awayTeam", "awayTeamName"]) or "")
+            home_name = _normalize_label(_extract_field(obj, ["home_team_name_en", "home_team", "home", "team1", "team1_name", "home_name", "homeTeam", "homeTeamName"]) or "")
+            away_name = _normalize_label(_extract_field(obj, ["away_team_name_en", "away_team", "away", "team2", "team2_name", "away_name", "awayTeam", "awayTeamName"]) or "")
+            home_placeholder = str(_extract_field(obj, ["home_team_label", "home_label"]) or "").strip()
+            away_placeholder = str(_extract_field(obj, ["away_team_label", "away_label"]) or "").strip()
+            home_label = _display_label(home_name, home_placeholder)
+            away_label = _display_label(away_name, away_placeholder)
 
-            # scores
             home_score = _to_int(_extract_field(obj, ["home_score", "score1", "score_home", "homeGoals", "home_goals"]))
             away_score = _to_int(_extract_field(obj, ["away_score", "score2", "score_away", "awayGoals", "away_goals"]))
 
-            # status
             status_raw = _extract_field(obj, ["status", "state", "match_status", "stage", "finished", "time_elapsed"]) or ""
-            # If the source provides an explicit 'finished' flag (bool or numeric), treat it as FINAL
             finished_flag = None
             if "finished" in obj:
                 val = obj.get("finished")
@@ -386,17 +408,24 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
                             finished_flag = True
             if finished_flag is True:
                 status = Match.Status.FINAL
+            elif not status_raw and home_score is not None and away_score is not None:
+                status = Match.Status.FINAL
             else:
                 status = _map_status(status_raw)
 
-            # kickoff (accept 'local_date' and various candidate keys)
             kickoff_raw = _extract_field(obj, ["datetime", "kickoff", "kickoff_at", "date_time", "date", "time", "local_date"]) or _extract_field(obj, ["utcDate", "dateUtc"]) or None
             kickoff = _parse_kickoff(kickoff_raw)
 
             normalized.append({
                 "match_number": match_number,
-                "home_label": str(home_label).strip(),
-                "away_label": str(away_label).strip(),
+                "home_label": home_label,
+                "away_label": away_label,
+                "home_placeholder_label": home_placeholder,
+                "away_placeholder_label": away_placeholder,
+                "home_name_label": home_name,
+                "away_name_label": away_name,
+                "group": str(obj.get("group") or "").strip(),
+                "type": str(obj.get("type") or "").strip().lower(),
                 "home_score": home_score,
                 "away_score": away_score,
                 "status": status,
@@ -406,7 +435,6 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
 
         return normalized
 
-    # parse payload
     try:
         records = parse_worldcup26_matches(snapshot.payload)
     except Exception as exc:
@@ -420,25 +448,20 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
 
     matches = list(Match.objects.all())
     by_number = {m.match_number: m for m in matches}
-    by_labels: dict[tuple, list] = {}
-    for m in matches:
-        # normalize DB labels using the same normalization applied to incoming payloads
-        key = (_normalize_label(m.home_label).strip().lower(), _normalize_label(m.away_label).strip().lower())
-        by_labels.setdefault(key, []).append(m)
 
     for rec in records:
         match_obj = None
-        # prefer numeric match_number but validate by team labels/kickoff
-        if rec.get("match_number") and rec["match_number"] in by_number:
+        is_group_record = rec.get("type") == "group" or len(_group_key(rec.get("group", ""))) == 1
+        if not is_group_record and rec.get("match_number") and rec["match_number"] in by_number:
             candidate = by_number[rec["match_number"]]
-            # validate label match (loose)
-            can_home = _normalize_label(candidate.home_label).strip().lower()
-            can_away = _normalize_label(candidate.away_label).strip().lower()
-            rec_home = (rec.get("home_label") or "").strip().lower()
-            rec_away = (rec.get("away_label") or "").strip().lower()
-            labels_match = (rec_home and rec_away and rec_home == can_home and rec_away == can_away)
-            # allow minor variations: check substring inclusion
-            labels_similar = (rec_home and rec_away and rec_home in can_home and rec_away in can_away) or (rec_home and rec_away and can_home in rec_home and can_away in rec_away)
+            candidate_home_keys = _match_label_keys(candidate, "home")
+            candidate_away_keys = _match_label_keys(candidate, "away")
+            record_home_keys = _record_label_keys(rec, "home")
+            record_away_keys = _record_label_keys(rec, "away")
+            labels_match = (
+                (not record_home_keys or bool(record_home_keys & candidate_home_keys))
+                and (not record_away_keys or bool(record_away_keys & candidate_away_keys))
+            )
             kickoff_ok = False
             try:
                 if rec.get("kickoff") and candidate.kickoff_at:
@@ -446,59 +469,73 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
             except Exception:
                 kickoff_ok = False
 
-            if labels_match or labels_similar or kickoff_ok:
+            if labels_match or (kickoff_ok and not (record_home_keys or record_away_keys)):
                 match_obj = candidate
-            else:
-                match_obj = None
-
-        # fallback to label matching
-        if not match_obj:
-            key = (rec["home_label"].lower(), rec["away_label"].lower())
-            candidates = by_labels.get(key, [])
-            if len(candidates) == 1:
-                match_obj = candidates[0]
-            elif len(candidates) > 1 and rec.get("kickoff"):
-                # try to disambiguate by kickoff time (within 6 hours)
-                for cand in candidates:
-                    try:
-                        if cand.kickoff_at and abs((cand.kickoff_at - rec["kickoff"]).total_seconds()) < 60 * 60 * 6:
-                            match_obj = cand
-                            break
-                    except Exception:
-                        continue
 
         if not match_obj:
-            # cannot confidently match, skip
+            record_home_keys = _record_label_keys(rec, "home")
+            record_away_keys = _record_label_keys(rec, "away")
+            for cand in matches:
+                candidate_home_keys = _match_label_keys(cand, "home")
+                candidate_away_keys = _match_label_keys(cand, "away")
+                labels_match = (
+                    (not record_home_keys or bool(record_home_keys & candidate_home_keys))
+                    and (not record_away_keys or bool(record_away_keys & candidate_away_keys))
+                )
+                kickoff_ok = False
+                try:
+                    if rec.get("kickoff") and cand.kickoff_at:
+                        kickoff_ok = abs((cand.kickoff_at - rec["kickoff"]).total_seconds()) < 60 * 60 * 6
+                except Exception:
+                    kickoff_ok = False
+                same_group = _group_key(rec.get("group", "")) == _group_key(cand.group)
+                if labels_match and (kickoff_ok or same_group or not rec.get("kickoff")):
+                    match_obj = cand
+                    break
+
+        if not match_obj:
             continue
 
-        # only update when numeric scores available
+        home_label = _display_label(rec.get("home_name_label", ""), rec.get("home_placeholder_label", ""))
+        away_label = _display_label(rec.get("away_name_label", ""), rec.get("away_placeholder_label", ""))
+        home_team = get_or_create_team(rec.get("home_name_label", ""))
+        away_team = get_or_create_team(rec.get("away_name_label", ""))
+        match_obj.home_label = home_label or match_obj.home_label
+        match_obj.away_label = away_label or match_obj.away_label
+        match_obj.home_team = home_team
+        match_obj.away_team = away_team
+
         home_score = rec.get("home_score")
         away_score = rec.get("away_score")
         parsed_status = rec.get("status")
 
-        # If numeric scores available, update DB with incoming values.
-        # Only mark the match FINAL when the incoming status indicates a finished match.
+        match_obj.source_payload = rec.get("raw") or {}
+        update_fields = ["home_label", "away_label", "home_team", "away_team", "source_payload", "updated_at"]
+
         if home_score is not None and away_score is not None:
             incoming = (int(home_score), int(away_score))
             match_obj.home_score = incoming[0]
             match_obj.away_score = incoming[1]
-            match_obj.source_payload = rec.get("raw") or {}
-            # Only transition to FINAL when source reports a finished match.
+            update_fields.extend(["home_score", "away_score"])
             if parsed_status == Match.Status.FINAL:
                 match_obj.status = Match.Status.FINAL
+                update_fields.append("status")
             elif parsed_status == Match.Status.LIVE:
                 match_obj.status = Match.Status.LIVE
-            # otherwise leave the existing status (e.g. scheduled) untouched
-            match_obj.save(update_fields=["home_score", "away_score", "status", "source_payload", "updated_at"])
+                update_fields.append("status")
+            match_obj.save(update_fields=update_fields)
             updated += 1
         else:
-            # no numeric scores; update status to LIVE if indicated
             if parsed_status == Match.Status.LIVE and match_obj.status != Match.Status.LIVE:
                 match_obj.status = Match.Status.LIVE
-                match_obj.source_payload = rec.get("raw") or {}
-                match_obj.save(update_fields=["status", "source_payload", "updated_at"])
+                update_fields.append("status")
+            match_obj.save(update_fields=update_fields)
 
     snapshot.parsed_ok = True
     snapshot.parse_message = f"Score sync processed {len(records)} records, updated {updated} matches with {len(conflicts)} conflicts."
     snapshot.save(update_fields=["parsed_ok", "parse_message"])
     return {"updated": updated, "conflicts": conflicts, "snapshot": snapshot.id}
+
+
+
+

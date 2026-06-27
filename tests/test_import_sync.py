@@ -1,5 +1,6 @@
+import json
 from pathlib import Path
-
+from tempfile import NamedTemporaryFile
 from django.core.management import call_command
 from django.test import TestCase
 
@@ -37,3 +38,39 @@ class ImportSyncTests(TestCase):
         self.assertEqual(match.status, Match.Status.FINAL)
         self.assertEqual((match.home_score, match.away_score), (2, 1))
         self.assertEqual(SyncRun.objects.filter(kind=SyncRun.Kind.SCORE_SYNC).count(), 2)
+
+    def test_worldcup26_group_sync_uses_group_and_teams_not_feed_id(self):
+        call_command(
+            "import_schedule",
+            openfootball_file=str(FIXTURE_DIR / "fixtures_openfootball.json"),
+            skip_remote_fifa=True,
+        )
+        payload = {
+            "games": [
+                {
+                    "id": "2",
+                    "group": "A",
+                    "type": "group",
+                    "local_date": "06/11/2026 13:00",
+                    "finished": "TRUE",
+                    "time_elapsed": "finished",
+                    "home_team_name_en": "Mexico",
+                    "away_team_name_en": "South Africa",
+                    "home_score": "4",
+                    "away_score": "2",
+                }
+            ]
+        }
+        with NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(payload, handle)
+            fixture_path = handle.name
+
+        call_command("sync_scores", openfootball_file=fixture_path)
+
+        matched = Match.objects.get(match_number=1)
+        wrong_id = Match.objects.get(match_number=2)
+        self.assertEqual(matched.status, Match.Status.FINAL)
+        self.assertEqual((matched.home_score, matched.away_score), (4, 2))
+        self.assertEqual((wrong_id.home_score, wrong_id.away_score), (None, None))
+
+
