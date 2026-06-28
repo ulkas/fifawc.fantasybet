@@ -53,7 +53,7 @@ COUNTRY_FLAGS = {
     "Haiti": ("HAI", flag_emoji("HT")),
     "Turkey": ("TUR", flag_emoji("TR")),
     "Qatar": ("QAT", flag_emoji("QA")),
-    "Curaçao": ("CUR", flag_emoji("CW")),
+    "CuraÃƒÂ§ao": ("CUR", flag_emoji("CW")),
     "Ivory Coast": ("CIV", flag_emoji("CI")),
     "Cape Verde": ("CPV", flag_emoji("CV")),
     "Democratic Republic of the Congo": ("COD", flag_emoji("CD")),
@@ -297,17 +297,48 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
         "congo, dr": "DR Congo",
         "ivory coast": "Ivory Coast",
         "cote d'ivoire": "Ivory Coast",
-        "côte d'ivoire": "Ivory Coast",
+        "cÃƒÂ´te d'ivoire": "Ivory Coast",
     })
     LABEL_ALIASES.update({
         "bosnia & herzegovina": "Bosnia and Herzegovina",
         "bosnia and herzegovina": "Bosnia and Herzegovina",
     })
 
+    def _normalize_placeholder_label(label: str) -> str:
+        clean = re.sub(r"\s+", " ", str(label or "").strip().lower())
+        if not clean:
+            return ""
+        clean = re.sub(r"\s*/\s*", "/", clean)
+
+        direct_patterns = (
+            (r"^1([a-z])$", "1{}"),
+            (r"^2([a-z])$", "2{}"),
+            (r"^3([a-z](?:/[a-z])*)$", "3{}"),
+        )
+        for pattern, template in direct_patterns:
+            match = re.match(pattern, clean)
+            if match:
+                return template.format(match.group(1).upper())
+
+        named_patterns = (
+            (r"^(?:winner|group winner)\s+group\s+([a-z])$", "1{}"),
+            (r"^(?:runner-up|runner up|group runner-up|group runner up)\s+group\s+([a-z])$", "2{}"),
+            (r"^(?:3rd|third)\s+group\s+([a-z](?:/[a-z])*)$", "3{}"),
+        )
+        for pattern, template in named_patterns:
+            match = re.match(pattern, clean)
+            if match:
+                return template.format(match.group(1).upper())
+
+        return clean
+
     def _normalize_label(label: str) -> str:
         if not label:
             return ""
         key = str(label).strip()
+        placeholder_key = _normalize_placeholder_label(key)
+        if placeholder_key and placeholder_key != key.lower():
+            return placeholder_key
         key_low = key.lower()
         if key_low in LABEL_ALIASES:
             return LABEL_ALIASES[key_low]
