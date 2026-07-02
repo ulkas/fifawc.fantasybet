@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 
 from django.db import models
 from django.utils import timezone
@@ -118,14 +119,67 @@ class Match(models.Model):
         return self.status == self.Status.FINAL and self.home_score is not None and self.away_score is not None
 
     @property
-    def actual_outcome(self) -> str:
+    def is_knockout(self) -> bool:
+        return self.stage != self.Stage.GROUP
+
+    def _scorer_entries(self, side: str) -> list[str]:
+        raw_value = (self.source_payload or {}).get(f"{side}_scorers")
+        if not raw_value or str(raw_value).strip().lower() == "null":
+            return []
+        text = str(raw_value).strip()
+        if text.startswith("{") and text.endswith("}"):
+            text = text[1:-1]
+        return [item.strip().strip('"') for item in text.split(",") if item.strip()]
+
+    def _goal_counts_by_period(self, side: str) -> tuple[int, int]:
+        regular_time_goals = 0
+        extra_time_goals = 0
+        for entry in self._scorer_entries(side):
+            minute_match = re.search(r"(\d+)(?:\+\d+)?(?:\([A-Z]+\))?'", entry)
+            if not minute_match:
+                continue
+            minute = int(minute_match.group(1))
+            if minute > 90:
+                extra_time_goals += 1
+            else:
+                regular_time_goals += 1
+        return regular_time_goals, extra_time_goals
+
+    @property
+    def regular_time_outcome(self) -> str:
         if not self.is_scored:
             return ""
+        if not self.is_knockout:
+            if self.home_score > self.away_score:
+                return self.Outcome.HOME
+            if self.away_score > self.home_score:
+                return self.Outcome.AWAY
+            return self.Outcome.DRAW
+
+        payload = self.source_payload or {}
+        if self.home_score == self.away_score:
+            return self.Outcome.DRAW
+        if any(str(payload.get(field)).strip().lower() not in ("", "null", "none") for field in ("home_penalty_score", "away_penalty_score")):
+            return self.Outcome.DRAW
+
+        home_regular, home_extra = self._goal_counts_by_period("home")
+        away_regular, away_extra = self._goal_counts_by_period("away")
+        if home_extra or away_extra:
+            if home_regular > away_regular:
+                return self.Outcome.HOME
+            if away_regular > home_regular:
+                return self.Outcome.AWAY
+            return self.Outcome.DRAW
+
         if self.home_score > self.away_score:
             return self.Outcome.HOME
         if self.away_score > self.home_score:
             return self.Outcome.AWAY
         return self.Outcome.DRAW
+
+    @property
+    def actual_outcome(self) -> str:
+        return self.regular_time_outcome
 
     @property
     def score_label(self) -> str:

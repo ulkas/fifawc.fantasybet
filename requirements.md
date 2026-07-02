@@ -56,6 +56,7 @@ The portal displays World Cup 2026 matches, groups, timelines, venue/time metada
   - Correct draw prediction: 3 points.
   - No bet or missing bet on a scored match: 1 point.
   - Wrong prediction: 0 points.
+  - For knockout matches, prediction settlement uses the regular-time result only; extra-time wins and penalty shootouts both settle as draws.
 - Unscored matches contribute 0 points until final.
 
 ## Main Views

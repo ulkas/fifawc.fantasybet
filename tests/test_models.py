@@ -70,3 +70,29 @@ class ScoringTests(TestCase):
         # Only 1 scored match, so min=1 and max=3 (preliminary max based on scored matches)
         self.assertEqual(league_range.min_points, 1)
         self.assertEqual(league_range.max_points, 3)
+
+    def test_knockout_extra_time_win_scores_as_draw(self):
+        self.match.stage = Match.Stage.ROUND_OF_32
+        self.match.home_label = "Belgium"
+        self.match.away_label = "Senegal"
+        self.match.home_score = 3
+        self.match.away_score = 2
+        self.match.source_payload = {
+            "home_scorers": "{\"Romelu Lukaku 86'\",\"Youri Tielemans 89'\",\"Youri Tielemans 125(P)'\"}",
+            "away_scorers": "{\"Habib Diarra 25'\",\"Ismaila Sarr 51'\"}",
+        }
+        self.match.save(update_fields=["stage", "home_label", "away_label", "home_score", "away_score", "source_payload"])
+
+        draw_prediction = Prediction.objects.create(player=self.player, match=self.match, choice=Prediction.Choice.DRAW)
+        self.assertEqual(self.match.actual_outcome, Match.Outcome.DRAW)
+        self.assertEqual(draw_prediction.points(), 3)
+
+    def test_knockout_regular_time_win_still_scores_as_win(self):
+        self.match.stage = Match.Stage.ROUND_OF_32
+        self.match.source_payload = {
+            "home_scorers": "{\"Belgium 12'\",\"Belgium 90+2'\"}",
+            "away_scorers": "{\"Senegal 44'\"}",
+        }
+        self.match.save(update_fields=["stage", "source_payload"])
+
+        self.assertEqual(self.match.actual_outcome, Match.Outcome.HOME)

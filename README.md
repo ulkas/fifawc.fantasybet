@@ -39,6 +39,8 @@ See [simulation.md](docs/simulation.md) for detailed simulation documentation.
 
 Editable matches use split home/draw/away voting regions. Clicking a country tile submits that country as the match winner prediction; draw and no-bet remain separate choices. The selected option is shown as a filled tile with a picked badge. Player pages reuse the same visual treatment in read-only form.
 
+Knockout predictions settle against the score at the end of regular time. Extra-time winners and penalty shootouts are both graded as draws for fantasy scoring.
+
 ## Bracket UI
 
 The bracket page renders knockout rounds as connected columns with offset spacing and connector lines so later rounds visually sit between their feeder matches. Wide brackets scroll horizontally with a visible scrollbar.

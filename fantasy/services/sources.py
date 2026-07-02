@@ -314,6 +314,8 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
             (r"^1([a-z])$", "1{}"),
             (r"^2([a-z])$", "2{}"),
             (r"^3([a-z](?:/[a-z])*)$", "3{}"),
+            (r"^w(\d+)$", "W{}"),
+            (r"^l(\d+)$", "L{}"),
         )
         for pattern, template in direct_patterns:
             match = re.match(pattern, clean)
@@ -324,6 +326,8 @@ def sync_scores_from_openfootball(openfootball_file: str | None = None) -> dict:
             (r"^(?:winner|group winner)\s+group\s+([a-z])$", "1{}"),
             (r"^(?:runner-up|runner up|group runner-up|group runner up)\s+group\s+([a-z])$", "2{}"),
             (r"^(?:3rd|third)\s+group\s+([a-z](?:/[a-z])*)$", "3{}"),
+            (r"^winner\s+match\s+(\d+)$", "W{}"),
+            (r"^loser\s+match\s+(\d+)$", "L{}"),
         )
         for pattern, template in named_patterns:
             match = re.match(pattern, clean)
